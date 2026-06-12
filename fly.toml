@@ -1,4 +1,4 @@
-app = "tiklive-command"
+app = "shortyapp"
 primary_region = "iad"
 
 [build]
