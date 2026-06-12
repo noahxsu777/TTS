@@ -221,52 +221,82 @@ function startMockEvents(ws: WebSocket, username: string): ReturnType<typeof set
 }
 
 async function connectTikTok(ws: WebSocket, state: ClientState, username: string) {
-  // Clear any pending reconnect
   if (state.reconnectTimer) { clearTimeout(state.reconnectTimer); state.reconnectTimer = null; }
 
   state.username = username;
   safeSend(ws, { type: 'connecting', username });
 
+  if (!TIKTOOLS_API_KEY) {
+    safeSend(ws, { type: 'info', message: 'No API key configured — running in demo mode' });
+    state.mockInterval = startMockEvents(ws, username);
+    return;
+  }
+
   try {
-    // @ts-ignore
-    const { WebcastPushConnection } = await import('tiktok-live-connector');
-    const conn = new WebcastPushConnection(username, {
+    // @ts-ignore — v2 ESM types
+    const mod = await import('tiktok-live-connector');
+    const TikTokLiveConnection = mod.TikTokLiveConnection ?? mod.default?.TikTokLiveConnection;
+    const SignConfig = mod.SignConfig ?? mod.default?.SignConfig;
+
+    if (!TikTokLiveConnection) throw new Error('TikTokLiveConnection not found in module');
+
+    // Apply EulerStream API key for WebSocket signing
+    if (SignConfig) {
+      SignConfig.apiKey = TIKTOOLS_API_KEY;
+    }
+
+    const conn = new TikTokLiveConnection(username, {
       processInitialData: true,
       fetchRoomInfoOnConnect: true,
       enableExtendedGiftInfo: true,
-      enableWebsocketUpgrade: true,
-      requestPollingIntervalMs: 2000,
-      sessionId: '',
     });
     state.tiktokConn = conn;
 
-    const stateInfo = await conn.connect();
-    safeSend(ws, { type: 'connected', username, stateInfo });
-
-    const events = ['chat', 'gift', 'like', 'roomUser', 'share', 'follow', 'subscribe', 'battle', 'envelope', 'questionNew'];
-    for (const ev of events) {
+    // Forward live events to the browser client
+    const FORWARD_EVENTS = ['chat', 'gift', 'like', 'roomUser', 'share', 'follow', 'subscribe', 'member', 'envelope', 'questionNew'];
+    for (const ev of FORWARD_EVENTS) {
       conn.on(ev, (data: unknown) => safeSend(ws, { type: ev, data }));
     }
 
-    conn.on('disconnected', () => {
+    // Battle (v2 event name)
+    conn.on('linkMicBattle', (data: unknown) => safeSend(ws, { type: 'battle', data }));
+
+    conn.on('streamEnd', () => {
       safeSend(ws, { type: 'disconnected' });
-      // Auto-reconnect after 5s if ws still open
-      if (ws.readyState === WebSocket.OPEN && state.username) {
-        state.reconnectTimer = setTimeout(() => {
-          safeSend(ws, { type: 'info', message: `Reconnecting to @${state.username}…` });
-          connectTikTok(ws, state, state.username!);
-        }, 5000);
-      }
+      scheduleReconnect(ws, state);
+    });
+
+    conn.on('disconnected', (_info: unknown) => {
+      safeSend(ws, { type: 'disconnected' });
+      scheduleReconnect(ws, state);
     });
 
     conn.on('error', (err: Error) => {
-      safeSend(ws, { type: 'error', message: err.message });
+      safeSend(ws, { type: 'error', message: err?.message ?? 'Unknown error' });
     });
 
+    await conn.connect();
+    safeSend(ws, { type: 'connected', username });
+
   } catch (err: any) {
-    // Fallback: demo mode
-    safeSend(ws, { type: 'info', message: `TikTok connector unavailable — running in demo mode (${err.message?.slice(0, 60) ?? ''})` });
-    state.mockInterval = startMockEvents(ws, username);
+    const msg = err?.message ?? String(err);
+    safeSend(ws, { type: 'error', message: `Connection failed: ${msg.slice(0, 120)}` });
+    // Retry after 10s on failure
+    if (ws.readyState === WebSocket.OPEN && state.username) {
+      state.reconnectTimer = setTimeout(() => {
+        safeSend(ws, { type: 'info', message: `Retrying connection to @${state.username}…` });
+        connectTikTok(ws, state, state.username!);
+      }, 10000);
+    }
+  }
+}
+
+function scheduleReconnect(ws: WebSocket, state: ClientState) {
+  if (ws.readyState === WebSocket.OPEN && state.username) {
+    state.reconnectTimer = setTimeout(() => {
+      safeSend(ws, { type: 'info', message: `Reconnecting to @${state.username}…` });
+      connectTikTok(ws, state, state.username!);
+    }, 5000);
   }
 }
 
