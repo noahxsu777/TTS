@@ -109,6 +109,13 @@ export interface GiftSound {
   diamonds: number;
 }
 
+// Simplified sound config used by GiftGallery (keyed by giftId)
+export interface GiftSoundConfig {
+  giftId: number;
+  soundUrl: string;
+  enabled: boolean;
+}
+
 export interface GiftConfig {
   sounds: GiftSound[];
   globalEnabled: boolean;

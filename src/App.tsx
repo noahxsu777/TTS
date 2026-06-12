@@ -1,7 +1,7 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Users, Gem, Heart, Share2 } from 'lucide-react';
-import type { AppConfig, LiveEvent, BattleState, RoomStats, WSMessage } from './types';
+import { Users, Gem, Heart, UserPlus } from 'lucide-react';
+import type { AppConfig, LiveEvent, BattleState, RoomStats, WSMessage, GiftSoundConfig } from './types';
 import { useWebSocket } from './hooks/useWebSocket';
 import { uid, applyTemplate, censorWords } from './utils/formatters';
 import Header from './components/Header';
@@ -15,132 +15,96 @@ import ProfileLookup from './components/ProfileLookup';
 // ── Default config ────────────────────────────────────────────────────────────
 const DEFAULT_CONFIG: AppConfig = {
   voice: {
-    engine: 'tiktok',
-    voice: 'en_us_001',
-    pitch: 1,
-    speed: 1,
-    volume: 80,
-    readChat: true,
-    readGifts: true,
-    readFollows: true,
+    engine: 'tiktok', voice: 'en_us_001',
+    pitch: 1, speed: 1, volume: 80,
+    readChat: true, readGifts: true, readFollows: true,
   },
   triggers: {
-    muteAll: false,
-    subscribersOnly: false,
-    moderatorsOnly: false,
-    minGiftDiamonds: 0,
-    whitelist: [],
+    muteAll: false, subscribersOnly: false, moderatorsOnly: false,
+    minGiftDiamonds: 0, whitelist: [],
   },
   templates: {
     follow: 'Thank you {username} for following!',
     subscribe: 'Welcome {username} to the family! ✨',
-    gift: '{username} sent a {gift} — thank you so much! 💎',
-    share: '{username} shared the stream! 🔥 You\'re awesome!',
+    gift: '{username} sent a {gift}! Thank you! 💎',
+    share: '{username} shared the stream! You\'re awesome! 🔥',
     like: '{username} liked the stream! ❤️',
     join: 'Welcome {username}!',
   },
-  moderation: {
-    bannedWords: [],
-    silenceAll: false,
-    silenceUntil: null,
-  },
-  gifts: {
-    sounds: [],
-    globalEnabled: true,
-    minDiamondsForAlert: 0,
-  },
+  moderation: { bannedWords: [], silenceAll: false, silenceUntil: null },
+  gifts: { sounds: [], globalEnabled: true, minDiamondsForAlert: 0 },
 };
 
-// Build WebSocket URL dynamically (works in dev & prod)
 const WS_URL = (() => {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   return `${proto}//${window.location.host}/ws`;
 })();
 
-// Max events to keep in feed
-const MAX_EVENTS = 120;
+const MAX_EVENTS = 150;
 
-// ── Starfield background ──────────────────────────────────────────────────────
+// ── Starfield ─────────────────────────────────────────────────────────────────
+const STARS = Array.from({ length: 90 }, () => ({
+  x: Math.random() * 100,
+  y: Math.random() * 100,
+  r: Math.random() * 1.4 + 0.3,
+  delay: Math.random() * 5,
+  dur: Math.random() * 3 + 2,
+}));
+
 function Starfield() {
-  const stars = useRef<{ x: number; y: number; size: number; delay: number; dur: number }[]>(
-    Array.from({ length: 80 }, () => ({
-      x: Math.random() * 100,
-      y: Math.random() * 100,
-      size: Math.random() * 1.5 + 0.5,
-      delay: Math.random() * 4,
-      dur: Math.random() * 3 + 2,
-    }))
-  );
-
   return (
-    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-      <svg className="w-full h-full" xmlns="http://www.w3.org/2000/svg">
-        {stars.current.map((s, i) => (
-          <circle
-            key={i}
-            cx={`${s.x}%`}
-            cy={`${s.y}%`}
-            r={s.size}
-            fill="white"
-          >
-            <animate
-              attributeName="opacity"
-              values="0.1;0.6;0.1"
-              dur={`${s.dur}s`}
-              begin={`${s.delay}s`}
-              repeatCount="indefinite"
-            />
+    <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none">
+      <svg className="w-full h-full absolute inset-0" xmlns="http://www.w3.org/2000/svg">
+        {STARS.map((s, i) => (
+          <circle key={i} cx={`${s.x}%`} cy={`${s.y}%`} r={s.r} fill="white">
+            <animate attributeName="opacity" values="0.08;0.55;0.08" dur={`${s.dur}s`} begin={`${s.delay}s`} repeatCount="indefinite" />
           </circle>
         ))}
       </svg>
-      {/* Ambient glow blobs */}
-      <div
-        className="absolute w-96 h-96 rounded-full blur-3xl pointer-events-none"
-        style={{ background: 'rgba(10,132,255,0.04)', top: '5%', left: '-5%' }}
-      />
-      <div
-        className="absolute w-80 h-80 rounded-full blur-3xl pointer-events-none"
-        style={{ background: 'rgba(191,90,242,0.04)', top: '10%', right: '-5%' }}
-      />
-      <div
-        className="absolute w-64 h-64 rounded-full blur-3xl pointer-events-none"
-        style={{ background: 'rgba(255,159,10,0.03)', bottom: '20%', left: '40%' }}
-      />
+      {/* Ambient blobs */}
+      <div className="absolute w-[600px] h-[400px] rounded-full blur-[120px] top-[-10%] left-[-10%]"
+        style={{ background: 'rgba(10,132,255,0.05)' }} />
+      <div className="absolute w-[500px] h-[350px] rounded-full blur-[100px] top-[5%] right-[-8%]"
+        style={{ background: 'rgba(191,90,242,0.05)' }} />
+      <div className="absolute w-[400px] h-[300px] rounded-full blur-[80px] bottom-[10%] left-[35%]"
+        style={{ background: 'rgba(255,159,10,0.04)' }} />
     </div>
   );
 }
 
-// ── Quick stats bar ───────────────────────────────────────────────────────────
+// ── Stats bar ─────────────────────────────────────────────────────────────────
 function StatsBar({ stats, events }: { stats: RoomStats; events: LiveEvent[] }) {
-  const giftTotal = events.filter(e => e.type === 'gift').reduce((s, e) => s + (e.diamondCount ?? 0), 0);
-  const followCount = events.filter(e => e.type === 'follow').length;
+  const diamonds = events.filter(e => e.type === 'gift').reduce((s, e) => s + (e.diamondCount ?? 0), 0);
+  const follows  = events.filter(e => e.type === 'follow').length;
+
+  const items = [
+    { icon: Users,    label: 'Viewers',      value: stats.viewerCount.toLocaleString(), color: '#0A84FF' },
+    { icon: Heart,    label: 'Likes',        value: stats.likeCount.toLocaleString(),   color: '#FF453A' },
+    { icon: Gem,      label: 'Diamonds',     value: diamonds.toLocaleString(),          color: '#FFD60A' },
+    { icon: UserPlus, label: 'New Follows',  value: follows.toLocaleString(),           color: '#30D158' },
+  ];
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 8 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       className="grid grid-cols-2 sm:grid-cols-4 gap-3"
     >
-      {[
-        { icon: Users, label: 'Viewers', value: stats.viewerCount.toLocaleString(), color: '#0A84FF' },
-        { icon: Heart, label: 'Likes', value: stats.likeCount.toLocaleString(), color: '#FF453A' },
-        { icon: Gem, label: '💎 Session', value: giftTotal.toLocaleString(), color: '#FFD60A' },
-        { icon: Share2, label: 'Follows', value: followCount.toLocaleString(), color: '#30D158' },
-      ].map(({ icon: Icon, label, value, color }) => (
+      {items.map(({ icon: Icon, label, value, color }) => (
         <div
           key={label}
           className="glass-card px-4 py-3 flex items-center gap-3"
-          style={{ borderColor: `${color}18` }}
+          style={{ borderColor: `${color}20` }}
         >
           <div
-            className="w-8 h-8 rounded-ios-sm flex items-center justify-center flex-shrink-0"
-            style={{ background: `${color}12` }}
+            className="w-9 h-9 rounded-ios-sm flex items-center justify-center flex-shrink-0"
+            style={{ background: `${color}12`, border: `1px solid ${color}22` }}
           >
-            <Icon size={14} style={{ color }} />
+            <Icon size={15} style={{ color }} />
           </div>
           <div>
-            <p className="stat-mono text-sm font-bold text-white">{value}</p>
-            <p className="text-[9px] text-white/30 uppercase tracking-wider">{label}</p>
+            <p className="font-mono text-sm font-bold text-white tabular-nums">{value}</p>
+            <p className="text-[9px] text-white/28 uppercase tracking-wider font-semibold">{label}</p>
           </div>
         </div>
       ))}
@@ -148,185 +112,161 @@ function StatsBar({ stats, events }: { stats: RoomStats; events: LiveEvent[] }) 
   );
 }
 
-// ── Main App ──────────────────────────────────────────────────────────────────
+// ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
+  const [giftSounds, setGiftSounds] = useState<Record<number, GiftSoundConfig>>({});
   const [events, setEvents] = useState<LiveEvent[]>([]);
   const [battle, setBattle] = useState<BattleState | null>(null);
   const [stats, setStats] = useState<RoomStats>({ viewerCount: 0, likeCount: 0 });
   const [tiktokConnected, setTiktokConnected] = useState(false);
   const [tiktokConnecting, setTiktokConnecting] = useState(false);
   const [currentUsername, setCurrentUsername] = useState('');
-  const [statusMsg, setStatusMsg] = useState('Enter a TikTok username to start monitoring a live stream');
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const configRef = useRef(config);
-  configRef.current = config;
+  const [statusMsg, setStatusMsg] = useState('Enter a TikTok username to monitor a live stream');
 
-  // ── TTS playback ──────────────────────────────────────────────────────────
+  const configRef    = useRef(config);
+  const giftSoundRef = useRef(giftSounds);
+  const usernameRef  = useRef(currentUsername);
+  configRef.current    = config;
+  giftSoundRef.current = giftSounds;
+  usernameRef.current  = currentUsername;
+
+  // ── TTS ───────────────────────────────────────────────────────────────────
   const speak = useCallback(async (text: string) => {
     const cfg = configRef.current;
-    if (cfg.triggers.muteAll) return;
-    if (cfg.moderation.silenceAll) {
-      if (cfg.moderation.silenceUntil && cfg.moderation.silenceUntil < Date.now()) {
-        setConfig(c => ({ ...c, moderation: { ...c.moderation, silenceAll: false, silenceUntil: null } }));
-      } else return;
-    }
-    // Censor words
-    const censored = censorWords(text, cfg.moderation.bannedWords);
+    if (cfg.triggers.muteAll || cfg.moderation.silenceAll) return;
+    const clean = censorWords(text, cfg.moderation.bannedWords);
     try {
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: censored, voice: cfg.voice.voice }),
+        body: JSON.stringify({ text: clean, voice: cfg.voice.voice }),
       });
       const data = await res.json();
       if (data.audio) {
         const audio = new Audio(`data:audio/mpeg;base64,${data.audio}`);
         audio.volume = cfg.voice.volume / 100;
         audio.playbackRate = cfg.voice.speed;
-        audioRef.current = audio;
         audio.play().catch(() => {});
       }
     } catch { /* ignore */ }
   }, []);
 
-  // ── Gift sound playback ───────────────────────────────────────────────────
+  // ── Gift sounds ───────────────────────────────────────────────────────────
   const playGiftSound = useCallback((giftId: number, diamonds: number) => {
     const cfg = configRef.current;
+    const sounds = giftSoundRef.current;
     if (!cfg.gifts.globalEnabled) return;
     if (diamonds < cfg.gifts.minDiamondsForAlert) return;
-    const sound = cfg.gifts.sounds.find(s => s.giftId === giftId && s.enabled && s.soundUrl);
-    if (sound?.soundUrl) {
-      const audio = new Audio(sound.soundUrl);
-      audio.volume = cfg.voice.volume / 100;
-      audio.play().catch(() => {});
+    const s = sounds[giftId];
+    if (s?.enabled && s?.soundUrl) {
+      const a = new Audio(s.soundUrl);
+      a.volume = cfg.voice.volume / 100;
+      a.play().catch(() => {});
     }
   }, []);
 
-  // ── WebSocket message handler ─────────────────────────────────────────────
+  // ── WS message handler ────────────────────────────────────────────────────
   const handleMessage = useCallback((msg: WSMessage) => {
     const cfg = configRef.current;
 
-    if (msg.type === 'connected') {
-      setTiktokConnected(true);
-      setTiktokConnecting(false);
-      setStatusMsg(`Connected to @${msg.username ?? currentUsername}'s live stream`);
-    }
-
-    if (msg.type === 'disconnected') {
-      setTiktokConnected(false);
-      setStatusMsg('Stream ended or disconnected');
-      setBattle(null);
-    }
-
-    if (msg.type === 'error') {
-      setTiktokConnected(false);
-      setTiktokConnecting(false);
-      setStatusMsg(`Error: ${msg.message}`);
-    }
-
-    if (msg.type === 'info') {
-      setStatusMsg(msg.message ?? '');
-    }
-
-    if (msg.type === 'roomUser') {
-      const d = msg.data as any;
-      setStats({ viewerCount: d?.viewerCount ?? 0, likeCount: d?.likeCount ?? 0 });
-    }
-
-    if (msg.type === 'battle') {
-      setBattle(msg.data as unknown as BattleState);
-    }
-
-    // Add to events feed
-    const addEvent = (ev: Omit<LiveEvent, 'id' | 'timestamp'>) => {
-      const newEv: LiveEvent = { ...ev, id: uid(), timestamp: Date.now() };
-      setEvents(prev => [newEv, ...prev].slice(0, MAX_EVENTS));
-      return newEv;
-    };
-
-    if (msg.type === 'chat') {
-      const d = msg.data as any;
-      // Access control
-      if (cfg.triggers.muteAll) return;
-      if (cfg.triggers.subscribersOnly && !d?.isSubscriber && !d?.isModerator) return;
-      if (cfg.triggers.moderatorsOnly && !d?.isModerator) return;
-      if (cfg.triggers.whitelist.length > 0 && !cfg.triggers.whitelist.includes(d?.uniqueId ?? '') && !d?.isModerator) return;
-
-      addEvent({
-        type: 'chat',
-        userId: d?.userId ?? '',
-        nickname: d?.nickname ?? 'Unknown',
-        comment: d?.comment ?? '',
-        isModerator: d?.isModerator ?? false,
-        isSubscriber: d?.isSubscriber ?? false,
-      });
-
-      if (cfg.voice.readChat && d?.comment) {
-        const text = applyTemplate('{username}: {comment}', {
-          username: d.nickname ?? '',
-          comment: d.comment ?? '',
-        });
-        speak(text);
+    switch (msg.type) {
+      case 'connected':
+        setTiktokConnected(true);
+        setTiktokConnecting(false);
+        setStatusMsg(`Connected to @${(msg as any).username ?? usernameRef.current}'s live stream`);
+        break;
+      case 'connecting':
+        setTiktokConnecting(true);
+        break;
+      case 'disconnected':
+        setTiktokConnected(false);
+        setStatusMsg('Stream ended or disconnected — auto-reconnecting…');
+        setBattle(null);
+        break;
+      case 'error':
+        setTiktokConnected(false);
+        setTiktokConnecting(false);
+        setStatusMsg(`⚠ ${msg.message}`);
+        break;
+      case 'info':
+        setStatusMsg(msg.message ?? '');
+        break;
+      case 'roomUser': {
+        const d = msg.data as any;
+        setStats({ viewerCount: d?.viewerCount ?? 0, likeCount: d?.likeCount ?? 0 });
+        break;
       }
-    }
-
-    if (msg.type === 'gift') {
-      const d = msg.data as any;
-      if (!d?.repeatEnd) return; // Only fire on last in streak
-      const ev = addEvent({
-        type: 'gift',
-        userId: d?.userId ?? '',
-        nickname: d?.nickname ?? 'Unknown',
-        giftName: d?.giftName ?? 'Gift',
-        giftIcon: d?.giftIcon ?? '🎁',
-        diamondCount: d?.diamondCount ?? 0,
-        repeatCount: d?.repeatCount ?? 1,
-      });
-
-      playGiftSound(d?.giftId ?? 0, d?.diamondCount ?? 0);
-
-      if (cfg.voice.readGifts && (d?.diamondCount ?? 0) >= cfg.triggers.minGiftDiamonds) {
-        const tpl = cfg.templates.gift;
-        if (tpl) {
-          speak(applyTemplate(tpl, {
-            username: d?.nickname ?? '',
-            gift: d?.giftName ?? 'a gift',
-            diamonds: String(d?.diamondCount ?? 0),
-            count: String(d?.repeatCount ?? 1),
-          }));
+      case 'battle':
+        setBattle(msg.data as unknown as BattleState);
+        break;
+      case 'like': {
+        const d = msg.data as any;
+        if (d?.totalLikeCount) setStats(s => ({ ...s, likeCount: d.totalLikeCount }));
+        break;
+      }
+      case 'chat': {
+        const d = msg.data as any;
+        if (cfg.triggers.muteAll) break;
+        if (cfg.triggers.subscribersOnly && !d?.isSubscriber && !d?.isModerator) break;
+        if (cfg.triggers.moderatorsOnly && !d?.isModerator) break;
+        if (cfg.triggers.whitelist.length > 0 && !cfg.triggers.whitelist.includes(d?.userId ?? '') && !d?.isModerator) break;
+        const ev: LiveEvent = {
+          id: uid(), type: 'chat', timestamp: Date.now(),
+          userId: d?.userId ?? '', nickname: d?.nickname ?? 'Unknown',
+          comment: d?.comment ?? '', isModerator: d?.isModerator, isSubscriber: d?.isSubscriber,
+        };
+        setEvents(p => [ev, ...p].slice(0, MAX_EVENTS));
+        if (cfg.voice.readChat && d?.comment) {
+          speak(`${d.nickname}: ${d.comment}`);
         }
+        break;
       }
-    }
-
-    if (msg.type === 'follow') {
-      const d = msg.data as any;
-      const ev = addEvent({ type: 'follow', userId: d?.userId ?? '', nickname: d?.nickname ?? 'Someone' });
-      if (cfg.voice.readFollows) {
-        const tpl = cfg.templates.follow;
+      case 'gift': {
+        const d = msg.data as any;
+        if (!d?.repeatEnd) break;
+        const ev: LiveEvent = {
+          id: uid(), type: 'gift', timestamp: Date.now(),
+          userId: d?.userId ?? '', nickname: d?.nickname ?? 'Unknown',
+          giftName: d?.giftName ?? 'Gift', giftIcon: d?.giftIcon ?? '🎁',
+          diamondCount: d?.diamondCount ?? 0, repeatCount: d?.repeatCount ?? 1,
+        };
+        setEvents(p => [ev, ...p].slice(0, MAX_EVENTS));
+        playGiftSound(d?.giftId ?? 0, d?.diamondCount ?? 0);
+        if (cfg.voice.readGifts && (d?.diamondCount ?? 0) >= cfg.triggers.minGiftDiamonds) {
+          const tpl = cfg.templates.gift;
+          if (tpl) speak(applyTemplate(tpl, { username: d?.nickname ?? '', gift: d?.giftName ?? 'a gift', diamonds: String(d?.diamondCount ?? 0), count: String(d?.repeatCount ?? 1) }));
+        }
+        break;
+      }
+      case 'follow': {
+        const d = msg.data as any;
+        const ev: LiveEvent = { id: uid(), type: 'follow', timestamp: Date.now(), userId: d?.userId ?? '', nickname: d?.nickname ?? 'Someone' };
+        setEvents(p => [ev, ...p].slice(0, MAX_EVENTS));
+        if (cfg.voice.readFollows) {
+          const tpl = cfg.templates.follow;
+          if (tpl) speak(applyTemplate(tpl, { username: d?.nickname ?? '' }));
+        }
+        break;
+      }
+      case 'share': {
+        const d = msg.data as any;
+        const ev: LiveEvent = { id: uid(), type: 'share', timestamp: Date.now(), userId: d?.userId ?? '', nickname: d?.nickname ?? 'Someone' };
+        setEvents(p => [ev, ...p].slice(0, MAX_EVENTS));
+        const tpl = cfg.templates.share;
         if (tpl) speak(applyTemplate(tpl, { username: d?.nickname ?? '' }));
+        break;
+      }
+      case 'subscribe': {
+        const d = msg.data as any;
+        const ev: LiveEvent = { id: uid(), type: 'subscribe', timestamp: Date.now(), userId: d?.userId ?? '', nickname: d?.nickname ?? 'Someone' };
+        setEvents(p => [ev, ...p].slice(0, MAX_EVENTS));
+        const tpl = cfg.templates.subscribe;
+        if (tpl) speak(applyTemplate(tpl, { username: d?.nickname ?? '' }));
+        break;
       }
     }
-
-    if (msg.type === 'share') {
-      const d = msg.data as any;
-      addEvent({ type: 'share', userId: d?.userId ?? '', nickname: d?.nickname ?? 'Someone' });
-      const tpl = cfg.templates.share;
-      if (tpl) speak(applyTemplate(tpl, { username: d?.nickname ?? '' }));
-    }
-
-    if (msg.type === 'subscribe') {
-      const d = msg.data as any;
-      addEvent({ type: 'subscribe', userId: d?.userId ?? '', nickname: d?.nickname ?? 'Someone' });
-      const tpl = cfg.templates.subscribe;
-      if (tpl) speak(applyTemplate(tpl, { username: d?.nickname ?? '' }));
-    }
-
-    if (msg.type === 'like') {
-      const d = msg.data as any;
-      setStats(s => ({ ...s, likeCount: d?.totalLikeCount ?? s.likeCount }));
-    }
-  }, [speak, playGiftSound, currentUsername]);
+  }, [speak, playGiftSound]);
 
   const { status: wsStatus, send } = useWebSocket(WS_URL, { onMessage: handleMessage });
 
@@ -344,6 +284,7 @@ export default function App() {
   const handleDisconnect = useCallback(() => {
     send({ action: 'disconnect' });
     setTiktokConnected(false);
+    setTiktokConnecting(false);
     setCurrentUsername('');
     setStatusMsg('Disconnected from stream');
     setBattle(null);
@@ -351,12 +292,11 @@ export default function App() {
   }, [send]);
 
   return (
-    <div className="min-h-screen relative">
+    <div className="min-h-screen relative text-white">
       <Starfield />
       <div className="scan-overlay" />
 
-      <div className="relative z-10 min-h-screen flex flex-col">
-        {/* Header */}
+      <div className="relative z-10 flex flex-col min-h-screen">
         <Header
           wsStatus={wsStatus}
           tiktokConnected={tiktokConnected}
@@ -364,14 +304,14 @@ export default function App() {
           viewerCount={stats.viewerCount}
         />
 
-        {/* Main content */}
-        <main className="flex-1 p-4 max-w-[1600px] mx-auto w-full space-y-4">
-          {/* Stats bar — shown when connected */}
+        <main className="flex-1 p-4 max-w-[1640px] mx-auto w-full space-y-4">
+          {/* Stats bar — live only */}
           <AnimatePresence>
             {tiktokConnected && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
+                key="stats"
+                initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+                animate={{ opacity: 1, height: 'auto', marginBottom: 0 }}
                 exit={{ opacity: 0, height: 0 }}
               >
                 <StatsBar stats={stats} events={events} />
@@ -381,7 +321,7 @@ export default function App() {
 
           {/* Bento grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {/* Column 1: Connection + Events */}
+            {/* Col 1: Connection + feed */}
             <div className="space-y-4">
               <ConnectionPanel
                 isConnected={tiktokConnected}
@@ -394,28 +334,30 @@ export default function App() {
               <LiveEventsFeed events={events} isConnected={tiktokConnected} />
             </div>
 
-            {/* Column 2: Battle + Boosters */}
+            {/* Col 2: Battle + Boosters */}
             <div className="space-y-4">
               <BattlePanel battle={battle} />
               <BoosterTracker />
             </div>
 
-            {/* Column 3: Config (spans full on mobile) */}
+            {/* Col 3: Config (full width on mobile/tablet) */}
             <div className="md:col-span-2 xl:col-span-1">
-              <ConfigPanel config={config} onChange={setConfig} />
+              <ConfigPanel
+                config={config}
+                onChange={setConfig}
+                giftSounds={giftSounds}
+                onGiftSoundsChange={setGiftSounds}
+              />
             </div>
           </div>
 
-          {/* Profile lookup - full width */}
-          <div>
-            <ProfileLookup />
-          </div>
+          {/* Profile Lookup */}
+          <ProfileLookup />
         </main>
 
-        {/* Footer */}
         <footer className="py-4 text-center">
-          <p className="text-[10px] text-white/10 font-mono tracking-widest">
-            TIKLIVE COMMAND · STREAMER CONTROL CENTER · v1.0
+          <p className="text-[9px] text-white/10 font-mono tracking-[0.2em]">
+            TIKLIVE COMMAND · STREAMER CONTROL CENTER · v2.0
           </p>
         </footer>
       </div>
