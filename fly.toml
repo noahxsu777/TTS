@@ -24,11 +24,6 @@ primary_region = "iad"
     protocol = "http"
     timeout = "5s"
 
-[mounts]
-  # Uncomment if you need persistent storage
-  # source = "tiklive_data"
-  # destination = "/data"
-
 [[vm]]
   cpu_kind = "shared"
   cpus = 1
