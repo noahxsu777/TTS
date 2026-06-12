@@ -1,0 +1,269 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base ─────────────────────────────────────────────────────────────────── */
+@layer base {
+  :root {
+    --cosmic-bg: #0C0C0E;
+    --neon-orange: #FF9F0A;
+    --neon-blue: #0A84FF;
+    --neon-green: #30D158;
+    --neon-gold: #FFD60A;
+    --neon-red: #FF453A;
+    --neon-purple: #BF5AF2;
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.07);
+    --glass-blur: 14px;
+  }
+
+  * {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: var(--cosmic-bg);
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(10, 132, 255, 0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 0%, rgba(191, 90, 242, 0.05) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 100%, rgba(255, 159, 10, 0.04) 0%, transparent 50%);
+    min-height: 100vh;
+  }
+}
+
+/* ── Components ───────────────────────────────────────────────────────────── */
+@layer components {
+  /* Glass card — primary building block */
+  .glass-card {
+    background: var(--glass-bg);
+    backdrop-filter: blur(var(--glass-blur));
+    -webkit-backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid var(--glass-border);
+    border-radius: 20px;
+    box-shadow:
+      0 20px 48px -12px rgba(0, 0, 0, 0.8),
+      0 0 0 1px rgba(255, 255, 255, 0.02),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+  }
+
+  .glass-card:hover {
+    box-shadow:
+      0 28px 56px -12px rgba(0, 0, 0, 0.9),
+      0 0 0 1px rgba(255, 255, 255, 0.04),
+      inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  }
+
+  /* Elevated card — for popups and overlays */
+  .glass-card-elevated {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    box-shadow:
+      0 32px 64px -16px rgba(0, 0, 0, 0.9),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  /* Neon button */
+  .btn-neon {
+    @apply relative px-5 py-2.5 rounded-ios-sm font-medium text-sm transition-all duration-200 active:scale-95;
+    min-height: 44px;
+  }
+
+  .btn-orange {
+    @apply btn-neon bg-[#FF9F0A]/10 border border-[#FF9F0A]/40 text-[#FF9F0A];
+    box-shadow: 0 0 12px rgba(255, 159, 10, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+  .btn-orange:hover {
+    @apply bg-[#FF9F0A]/20 border-[#FF9F0A]/70;
+    box-shadow: 0 0 20px rgba(255, 159, 10, 0.35);
+  }
+
+  .btn-blue {
+    @apply btn-neon bg-[#0A84FF]/10 border border-[#0A84FF]/40 text-[#0A84FF];
+    box-shadow: 0 0 12px rgba(10, 132, 255, 0.15);
+  }
+  .btn-blue:hover {
+    @apply bg-[#0A84FF]/20 border-[#0A84FF]/70;
+    box-shadow: 0 0 20px rgba(10, 132, 255, 0.35);
+  }
+
+  .btn-green {
+    @apply btn-neon bg-[#30D158]/10 border border-[#30D158]/40 text-[#30D158];
+    box-shadow: 0 0 12px rgba(48, 209, 88, 0.15);
+  }
+  .btn-green:hover {
+    @apply bg-[#30D158]/20 border-[#30D158]/70;
+    box-shadow: 0 0 20px rgba(48, 209, 88, 0.35);
+  }
+
+  .btn-solid-orange {
+    @apply btn-neon bg-[#FF9F0A] text-black font-semibold;
+    box-shadow: 0 0 20px rgba(255, 159, 10, 0.4), 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+  .btn-solid-orange:hover {
+    box-shadow: 0 0 32px rgba(255, 159, 10, 0.6), 0 4px 16px rgba(0, 0, 0, 0.5);
+  }
+
+  /* Live indicator dot */
+  .live-dot {
+    @apply inline-block w-2 h-2 rounded-full bg-[#30D158];
+    animation: pulseLive 2s ease-in-out infinite;
+  }
+
+  /* Mono stat */
+  .stat-mono {
+    @apply font-mono text-xs tracking-wide;
+  }
+
+  /* Section label */
+  .section-label {
+    @apply text-[10px] font-semibold tracking-[0.15em] uppercase text-white/30;
+  }
+
+  /* Custom input */
+  .input-cosmic {
+    @apply w-full bg-white/[0.04] border border-white/[0.08] rounded-ios-sm px-4 py-3 text-sm text-white placeholder-white/25 outline-none transition-all duration-200;
+    min-height: 44px;
+  }
+  .input-cosmic:focus {
+    @apply border-[#0A84FF]/60;
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.12);
+  }
+
+  /* Toggle switch */
+  .toggle {
+    @apply relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 cursor-pointer;
+  }
+  .toggle-thumb {
+    @apply inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform duration-200;
+  }
+
+  /* Scrollable feed */
+  .feed-scroll {
+    @apply overflow-y-auto;
+    scroll-behavior: smooth;
+  }
+  .feed-scroll::-webkit-scrollbar { width: 3px; }
+  .feed-scroll::-webkit-scrollbar-track { background: transparent; }
+  .feed-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px; }
+
+  /* Shimmer skeleton */
+  .skeleton {
+    background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+}
+
+/* ── Utilities ────────────────────────────────────────────────────────────── */
+@layer utilities {
+  .text-gradient-orange {
+    background: linear-gradient(135deg, #FF9F0A 0%, #FF6B00 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-blue {
+    background: linear-gradient(135deg, #0A84FF 0%, #00C7FF 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #FFD60A 0%, #FF9F0A 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .text-gradient-green {
+    background: linear-gradient(135deg, #30D158 0%, #00E5A0 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .border-gradient-orange {
+    border-image: linear-gradient(135deg, rgba(255,159,10,0.6), rgba(255,107,0,0.2)) 1;
+  }
+
+  .glow-orange { box-shadow: 0 0 20px rgba(255, 159, 10, 0.4); }
+  .glow-blue   { box-shadow: 0 0 20px rgba(10, 132, 255, 0.4); }
+  .glow-green  { box-shadow: 0 0 20px rgba(48, 209, 88, 0.4); }
+  .glow-gold   { box-shadow: 0 0 20px rgba(255, 214, 10, 0.4); }
+
+  /* iOS-style depth layer */
+  .depth-1 { transform: perspective(1000px) translateZ(2px); }
+  .depth-2 { transform: perspective(1000px) translateZ(4px); }
+
+  /* Touch target */
+  .touch-target { min-width: 44px; min-height: 44px; display: flex; align-items: center; justify-content: center; }
+}
+
+/* ── Keyframes ────────────────────────────────────────────────────────────── */
+@keyframes pulseLive {
+  0%, 100% {
+    box-shadow: 0 0 4px rgba(48, 209, 88, 0.8);
+    opacity: 1;
+  }
+  50% {
+    box-shadow: 0 0 14px rgba(48, 209, 88, 1), 0 0 28px rgba(48, 209, 88, 0.5);
+    opacity: 0.75;
+  }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+
+@keyframes glowOrange {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 159, 10, 0.4); }
+  50%       { box-shadow: 0 0 24px rgba(255, 159, 10, 0.8), 0 0 48px rgba(255, 159, 10, 0.3); }
+}
+
+@keyframes scanLine {
+  0%   { transform: translateY(-10px); opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateY(100vh); opacity: 0; }
+}
+
+@keyframes floatUp {
+  0%   { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-80px) scale(0.5); opacity: 0; }
+}
+
+/* Animated starfield via pseudo-elements */
+.starfield::before,
+.starfield::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Scan line overlay effect */
+.scan-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(10, 132, 255, 0.3), transparent);
+  animation: scanLine 8s linear infinite;
+  pointer-events: none;
+  z-index: 1;
+}
