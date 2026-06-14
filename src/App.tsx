@@ -114,6 +114,17 @@ function StatsBar({ stats, events }: { stats: RoomStats; events: LiveEvent[] }) 
   );
 }
 
+// ── IPTV + Agenda combined with shared stream state ───────────────────────────
+function IPTVScheduleRow() {
+  const [externalStream, setExternalStream] = React.useState<{ url: string; name: string } | null>(null);
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <IPTVPlayer externalStream={externalStream} onExternalStreamConsumed={() => setExternalStream(null)} />
+      <MatchSchedule onPlayStream={(url, name) => setExternalStream({ url, name })} />
+    </div>
+  );
+}
+
 // ── App ───────────────────────────────────────────────────────────────────────
 export default function App() {
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
@@ -357,10 +368,7 @@ export default function App() {
           <ProfileLookup />
 
           {/* IPTV + Agenda row */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <IPTVPlayer />
-            <MatchSchedule />
-          </div>
+          <IPTVScheduleRow />
         </main>
 
         <footer className="py-4 text-center">

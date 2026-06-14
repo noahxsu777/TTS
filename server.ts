@@ -5,6 +5,8 @@ import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { readFileSync } from 'node:fs';
+// @ts-ignore
+import * as cheerio from 'cheerio';
 
 // Load .env in dev
 try {
@@ -483,66 +485,199 @@ app.get('/api/iptv-proxy', async (req: Request, res: Response) => {
   }
 });
 
-// ── Football schedule ─────────────────────────────────────────────────────────
-// Fetches today's soccer matches from TheSportsDB (free, no key required for basic)
-interface FootballMatch {
-  id: string; homeTeam: string; awayTeam: string;
-  homeScore: number | null; awayScore: number | null;
-  status: string; minute: number | null;
-  competition: string; kickoff: string;
-  homeLogo?: string; awayLogo?: string;
+// ── Futbol Libres scraper ─────────────────────────────────────────────────────
+const BASE_URL = 'https://futbol-libres.su';
+
+const HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+  'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+  'Referer': 'https://futbol-libres.su/',
+};
+
+interface FLMatch {
+  id: string;
+  title: string;
+  homeTeam: string;
+  awayTeam: string;
+  competition: string;
+  kickoff: string;
+  status: string;
+  homeScore: number | null;
+  awayScore: number | null;
+  streamPageUrl: string;
+  homeLogo?: string;
+  awayLogo?: string;
 }
 
-let footballCache: FootballMatch[] | null = null;
-let footballCacheTime = 0;
-const FOOTBALL_CACHE_TTL = 60 * 1000; // 1 minute (live scores change)
+let flCache: FLMatch[] | null = null;
+let flCacheTime = 0;
+const FL_CACHE_TTL = 90 * 1000; // 90s
 
-app.get('/api/football-schedule', async (_req: Request, res: Response) => {
-  if (footballCache && Date.now() - footballCacheTime < FOOTBALL_CACHE_TTL) {
-    return res.json(footballCache);
+async function scrapeFutbolLibres(): Promise<FLMatch[]> {
+  const r = await fetch(BASE_URL, { headers: HEADERS, signal: AbortSignal.timeout(12000) });
+  if (!r.ok) throw new Error(`HTTP ${r.status}`);
+  const html = await r.text();
+  const $ = cheerio.load(html);
+  const matches: FLMatch[] = [];
+
+  // Parse match cards — the site uses various selectors; try multiple patterns
+  const selectors = [
+    '.event', '.match', '.partido', '.game', '.fixture',
+    '[class*="event"]', '[class*="match"]', '[class*="partido"]',
+    'article', '.card',
+  ];
+
+  let found = false;
+  for (const sel of selectors) {
+    const els = $(sel);
+    if (els.length >= 2) {
+      els.each((i: number, el: any) => {
+        const $el = $(el);
+        const link = $el.find('a').first().attr('href') || $el.attr('href') || '';
+        const title = $el.find('h1,h2,h3,h4,.title,.name,.teams').first().text().trim()
+          || $el.text().trim().slice(0, 80);
+
+        if (!title || title.length < 4) return;
+
+        // Try to detect score
+        const scoreText = $el.find('.score,.result,.marcador,[class*="score"],[class*="result"]').first().text().trim();
+        let homeScore: number | null = null;
+        let awayScore: number | null = null;
+        const scoreM = scoreText.match(/(\d+)\s*[-:]\s*(\d+)/);
+        if (scoreM) { homeScore = parseInt(scoreM[1]); awayScore = parseInt(scoreM[2]); }
+
+        // Extract teams from title
+        const vsMatch = title.match(/^(.+?)\s+(?:vs?\.?|-)\.?\s+(.+?)(?:\s*\||$)/i);
+        const homeTeam = vsMatch?.[1]?.trim() ?? title;
+        const awayTeam = vsMatch?.[2]?.trim() ?? '';
+
+        // Competition
+        const competition = $el.find('.league,.competition,.liga,[class*="league"],[class*="competition"]').first().text().trim() || 'Fútbol';
+
+        // Time
+        const timeText = $el.find('.time,.hour,.hora,.kickoff,[class*="time"],[class*="hour"]').first().text().trim();
+
+        // Status
+        let status = 'NS';
+        const liveEl = $el.find('.live,[class*="live"],[class*="en-vivo"]');
+        if (liveEl.length) status = 'LIVE';
+        else if (homeScore !== null) status = 'FT';
+
+        // Logos
+        const imgs = $el.find('img');
+        const homeLogo = imgs.eq(0).attr('src') ?? '';
+        const awayLogo = imgs.eq(1).attr('src') ?? '';
+
+        const fullLink = link.startsWith('http') ? link : (link ? `${BASE_URL}${link.startsWith('/') ? '' : '/'}${link}` : '');
+
+        matches.push({
+          id: String(i),
+          title,
+          homeTeam,
+          awayTeam,
+          competition,
+          kickoff: timeText || new Date().toISOString(),
+          status,
+          homeScore,
+          awayScore,
+          streamPageUrl: fullLink,
+          homeLogo: homeLogo.startsWith('http') ? homeLogo : (homeLogo ? `${BASE_URL}${homeLogo}` : ''),
+          awayLogo: awayLogo.startsWith('http') ? awayLogo : (awayLogo ? `${BASE_URL}${awayLogo}` : ''),
+        });
+      });
+      if (matches.length > 0) { found = true; break; }
+    }
   }
 
+  // Fallback: look for any <a> that looks like a match link
+  if (!found || matches.length === 0) {
+    $('a[href]').each((i: number, el: any) => {
+      const $el = $(el);
+      const href = $el.attr('href') ?? '';
+      const text = $el.text().trim();
+      if (text.length < 5 || text.length > 100) return;
+      if (!text.match(/vs|vs\.|–|-|\d+:\d+/i) && !href.match(/partido|match|game|event|live/i)) return;
+      const fullLink = href.startsWith('http') ? href : `${BASE_URL}${href.startsWith('/') ? '' : '/'}${href}`;
+      const vsMatch = text.match(/^(.+?)\s+(?:vs?\.?|–|-)\s+(.+?)(?:\s*\||$)/i);
+      matches.push({
+        id: String(i + 1000),
+        title: text,
+        homeTeam: vsMatch?.[1]?.trim() ?? text,
+        awayTeam: vsMatch?.[2]?.trim() ?? '',
+        competition: 'Fútbol',
+        kickoff: new Date().toISOString(),
+        status: 'NS',
+        homeScore: null,
+        awayScore: null,
+        streamPageUrl: fullLink,
+      });
+    });
+  }
+
+  return matches;
+}
+
+// Extract stream URL from a match page
+async function extractStreamUrl(pageUrl: string): Promise<string[]> {
+  if (!pageUrl) return [];
   try {
-    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
-    const url = `https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${today}&s=Soccer`;
-    const r = await fetch(url, {
-      headers: { 'User-Agent': 'TikLive-Command/1.0' },
-      signal: AbortSignal.timeout(8000),
+    const r = await fetch(pageUrl, { headers: HEADERS, signal: AbortSignal.timeout(12000) });
+    if (!r.ok) return [];
+    const html = await r.text();
+
+    const streams: string[] = [];
+
+    // Look for .m3u8 URLs
+    const m3u8Matches = [...html.matchAll(/["'`]?(https?:\/\/[^"'`\s]+\.m3u8[^"'`\s]*)/g)];
+    for (const m of m3u8Matches) streams.push(m[1]);
+
+    // Look for common stream patterns
+    const srcMatches = [...html.matchAll(/['"](https?:\/\/[^'"]*(?:stream|live|hls|playlist|master)[^'"]*)['"]/gi)];
+    for (const m of srcMatches) {
+      const u = m[1];
+      if (!streams.includes(u)) streams.push(u);
+    }
+
+    // iframe src (sub-players)
+    const $ = cheerio.load(html);
+    $('iframe').each((_: number, el: any) => {
+      const src = $(el).attr('src') ?? '';
+      if (src && src.startsWith('http') && !streams.includes(src)) streams.push(src);
     });
 
-    if (!r.ok) throw new Error(`TheSportsDB ${r.status}`);
-    const raw = await r.json() as any;
-    const events: any[] = Array.isArray(raw?.events) ? raw.events : [];
-
-    const matches: FootballMatch[] = events.map((e: any) => {
-      const homeScore = e.intHomeScore != null ? parseInt(e.intHomeScore) : null;
-      const awayScore = e.intAwayScore != null ? parseInt(e.intAwayScore) : null;
-      let status = 'NS';
-      if (e.strStatus === 'Match Finished') status = 'FT';
-      else if (e.strStatus === 'Half Time') status = 'HT';
-      else if (e.strProgress) status = 'LIVE';
-
-      return {
-        id: e.idEvent,
-        homeTeam: e.strHomeTeam ?? 'Home',
-        awayTeam: e.strAwayTeam ?? 'Away',
-        homeScore: isNaN(homeScore as any) ? null : homeScore,
-        awayScore: isNaN(awayScore as any) ? null : awayScore,
-        status,
-        minute: e.strProgress ? parseInt(e.strProgress) : null,
-        competition: e.strLeague ?? e.strSport ?? 'Soccer',
-        kickoff: e.strTimestamp ?? e.dateEvent + 'T' + (e.strTime ?? '00:00:00') + 'Z',
-        homeLogo: e.strHomeTeamBadge ?? '',
-        awayLogo: e.strAwayTeamBadge ?? '',
-      };
+    // source tags
+    $('source[src]').each((_: number, el: any) => {
+      const src = $(el).attr('src') ?? '';
+      if (src && !streams.includes(src)) streams.push(src);
     });
 
-    footballCache = matches;
-    footballCacheTime = Date.now();
+    return [...new Set(streams)].slice(0, 5);
+  } catch {
+    return [];
+  }
+}
+
+app.get('/api/fl-schedule', async (_req: Request, res: Response) => {
+  if (flCache && Date.now() - flCacheTime < FL_CACHE_TTL) return res.json(flCache);
+  try {
+    const matches = await scrapeFutbolLibres();
+    flCache = matches;
+    flCacheTime = Date.now();
     res.json(matches);
-  } catch (err: any) {
-    // Return mock data on failure so UI always shows something
-    res.status(200).json([]);
+  } catch (e: any) {
+    res.status(502).json({ error: e?.message ?? 'Scrape failed' });
+  }
+});
+
+app.get('/api/fl-stream', async (req: Request, res: Response) => {
+  const { url } = req.query as { url?: string };
+  if (!url) return res.status(400).json({ error: 'url required' });
+  try {
+    const streams = await extractStreamUrl(url);
+    res.json({ streams });
+  } catch (e: any) {
+    res.status(502).json({ error: e?.message });
   }
 });
 

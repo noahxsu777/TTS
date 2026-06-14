@@ -45,7 +45,12 @@ function grouped(channels: Channel[]) {
   return g;
 }
 
-export default function IPTVPlayer() {
+interface IPTVPlayerProps {
+  externalStream?: { url: string; name: string } | null;
+  onExternalStreamConsumed?: () => void;
+}
+
+export default function IPTVPlayer({ externalStream, onExternalStreamConsumed }: IPTVPlayerProps = {}) {
   const [inputUrl, setInputUrl] = useState('');
   const [channels, setChannels] = useState<Channel[]>([]);
   const [groups, setGroups] = useState<Record<string, Channel[]>>({});
@@ -219,6 +224,16 @@ export default function IPTVPlayer() {
     v.muted = muted;
     v.volume = volume / 100;
   }, [muted, volume]);
+
+  // React to external stream from Match Schedule
+  useEffect(() => {
+    if (!externalStream) return;
+    const ch: Channel = { name: externalStream.name, url: externalStream.url, group: 'Fútbol Libres' };
+    playChannel(ch);
+    onExternalStreamConsumed?.();
+    // Scroll player into view
+    setTimeout(() => document.querySelector('[data-iptv-player]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+  }, [externalStream]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cleanup
   useEffect(() => () => { hlsRef.current?.destroy(); }, []);
@@ -407,7 +422,7 @@ export default function IPTVPlayer() {
   );
 
   return (
-    <div className="glass-card overflow-hidden" style={{ borderColor: 'rgba(10,132,255,0.15)' }}>
+    <div data-iptv-player className="glass-card overflow-hidden" style={{ borderColor: 'rgba(10,132,255,0.15)' }}>
 
       {/* ── Header ── */}
       <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/[0.05]"
