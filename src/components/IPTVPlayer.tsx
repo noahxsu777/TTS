@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import {
   Tv, Play, Pause, Volume2, VolumeX, Maximize2,
   List, Search, Loader2, AlertCircle, ChevronRight,
-  Signal, ChevronDown, Radio,
+  Signal, Radio, Monitor, Cast,
 } from 'lucide-react';
 import Hls from 'hls.js';
 
@@ -60,10 +60,14 @@ export default function IPTVPlayer() {
   const [search, setSearch] = useState('');
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [showList, setShowList] = useState(true); // on mobile toggles list vs player
+  const [casting, setCasting] = useState(false);
+  const [castErr, setCastErr] = useState('');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const hlsRef = useRef<Hls | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const castStreamRef = useRef<MediaStream | null>(null);
+  const castVideoRef = useRef<HTMLVideoElement | null>(null);
 
   // ── Load playlist ──────────────────────────────────────────────────────────
   const load = useCallback(async (rawUrl: string) => {
@@ -241,6 +245,67 @@ export default function IPTVPlayer() {
     if (document.fullscreenElement) document.exitFullscreen();
     else el.requestFullscreen?.();
   };
+
+  // Compartir pantalla / Cast a TV
+  const toggleCast = useCallback(async () => {
+    setCastErr('');
+
+    if (casting) {
+      // Stop casting
+      castStreamRef.current?.getTracks().forEach(t => t.stop());
+      castStreamRef.current = null;
+      if (castVideoRef.current) {
+        castVideoRef.current.srcObject = null;
+        castVideoRef.current = null;
+      }
+      setCasting(false);
+      return;
+    }
+
+    try {
+      // Opens browser's "Share screen" dialog — in Chrome includes "Cast to TV" option
+      const stream = await (navigator.mediaDevices as any).getDisplayMedia({
+        video: { frameRate: { ideal: 30 } },
+        audio: true,
+      });
+      castStreamRef.current = stream;
+      setCasting(true);
+
+      // Open a new window acting as the "TV screen"
+      const win = window.open('', '_blank', 'width=1280,height=720,menubar=no,toolbar=no,location=no,status=no');
+      if (win) {
+        win.document.title = active?.name ?? 'IPTV Player';
+        win.document.body.style.cssText = 'margin:0;background:#000;display:flex;align-items:center;justify-content:center;height:100vh;';
+        const v = win.document.createElement('video');
+        v.style.cssText = 'width:100%;height:100%;object-fit:contain;';
+        v.autoplay = true;
+        v.srcObject = stream;
+        win.document.body.appendChild(v);
+        castVideoRef.current = v;
+
+        win.addEventListener('beforeunload', () => {
+          stream.getTracks().forEach((t: MediaStreamTrack) => t.stop());
+          setCasting(false);
+          castStreamRef.current = null;
+        });
+      }
+
+      // Stop when user ends screen share from browser UI
+      stream.getVideoTracks()[0]?.addEventListener('ended', () => {
+        setCasting(false);
+        castStreamRef.current = null;
+      });
+    } catch (e: any) {
+      if (e?.name !== 'NotAllowedError') {
+        setCastErr('No se pudo compartir pantalla');
+      }
+    }
+  }, [casting, active]);
+
+  // Cleanup cast on unmount
+  useEffect(() => () => {
+    castStreamRef.current?.getTracks().forEach(t => t.stop());
+  }, []);
 
   // Filter
   const q = search.toLowerCase();
@@ -532,12 +597,19 @@ export default function IPTVPlayer() {
                   style={{ maxWidth: 120 }}
                 />
 
-                {/* Channel group label */}
-                {active.group && (
-                  <span className="ml-auto text-[9px] text-white/25 font-mono truncate max-w-[100px] hidden sm:block">
-                    {active.group}
-                  </span>
-                )}
+                {/* Cast / Share screen button */}
+                <button
+                  onClick={toggleCast}
+                  title={casting ? 'Detener compartir pantalla' : 'Compartir pantalla / Enviar a TV'}
+                  className="ml-auto p-2 rounded-ios-sm transition-all min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  style={{
+                    background: casting ? 'rgba(48,209,88,0.15)' : 'rgba(255,255,255,0.05)',
+                    color: casting ? '#30D158' : 'rgba(255,255,255,0.45)',
+                    border: casting ? '1px solid rgba(48,209,88,0.35)' : '1px solid transparent',
+                  }}
+                >
+                  {casting ? <Monitor size={16} /> : <Cast size={16} />}
+                </button>
 
                 {/* On desktop: channel list toggle */}
                 <button
@@ -548,6 +620,9 @@ export default function IPTVPlayer() {
                   <List size={14} />
                 </button>
               </div>
+              {castErr && (
+                <p className="text-[10px] text-[#FF453A] text-center pb-1">{castErr}</p>
+              )}
             </div>
           )}
 
@@ -612,6 +687,18 @@ export default function IPTVPlayer() {
                 <input type="range" min={0} max={100} value={muted ? 0 : volume}
                   onChange={e => { setVolume(+e.target.value); if (+e.target.value > 0) setMuted(false); }}
                   className="flex-1 accent-[#0A84FF] h-1 cursor-pointer" style={{ maxWidth: 120 }} />
+                {/* Cast button desktop */}
+                <button
+                  onClick={toggleCast}
+                  title={casting ? 'Detener' : 'Compartir pantalla / Enviar a TV'}
+                  className="ml-auto p-2 rounded-ios-sm transition-all min-w-[44px] min-h-[44px] flex items-center justify-center"
+                  style={{
+                    background: casting ? 'rgba(48,209,88,0.15)' : undefined,
+                    color: casting ? '#30D158' : 'rgba(255,255,255,0.4)',
+                  }}
+                >
+                  {casting ? <Monitor size={16} /> : <Cast size={16} />}
+                </button>
               </div>
             </div>
           )}

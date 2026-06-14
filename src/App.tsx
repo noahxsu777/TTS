@@ -12,6 +12,7 @@ import BoosterTracker from './components/BoosterTracker';
 import ConfigPanel from './components/ConfigPanel';
 import ProfileLookup from './components/ProfileLookup';
 import IPTVPlayer from './components/IPTVPlayer';
+import MatchSchedule from './components/MatchSchedule';
 
 // ── Default config ────────────────────────────────────────────────────────────
 const DEFAULT_CONFIG: AppConfig = {
@@ -355,8 +356,11 @@ export default function App() {
           {/* Profile Lookup */}
           <ProfileLookup />
 
-          {/* IPTV Player */}
-          <IPTVPlayer />
+          {/* IPTV + Agenda row */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <IPTVPlayer />
+            <MatchSchedule />
+          </div>
         </main>
 
         <footer className="py-4 text-center">

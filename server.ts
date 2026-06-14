@@ -483,6 +483,69 @@ app.get('/api/iptv-proxy', async (req: Request, res: Response) => {
   }
 });
 
+// ── Football schedule ─────────────────────────────────────────────────────────
+// Fetches today's soccer matches from TheSportsDB (free, no key required for basic)
+interface FootballMatch {
+  id: string; homeTeam: string; awayTeam: string;
+  homeScore: number | null; awayScore: number | null;
+  status: string; minute: number | null;
+  competition: string; kickoff: string;
+  homeLogo?: string; awayLogo?: string;
+}
+
+let footballCache: FootballMatch[] | null = null;
+let footballCacheTime = 0;
+const FOOTBALL_CACHE_TTL = 60 * 1000; // 1 minute (live scores change)
+
+app.get('/api/football-schedule', async (_req: Request, res: Response) => {
+  if (footballCache && Date.now() - footballCacheTime < FOOTBALL_CACHE_TTL) {
+    return res.json(footballCache);
+  }
+
+  try {
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const url = `https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d=${today}&s=Soccer`;
+    const r = await fetch(url, {
+      headers: { 'User-Agent': 'TikLive-Command/1.0' },
+      signal: AbortSignal.timeout(8000),
+    });
+
+    if (!r.ok) throw new Error(`TheSportsDB ${r.status}`);
+    const raw = await r.json() as any;
+    const events: any[] = Array.isArray(raw?.events) ? raw.events : [];
+
+    const matches: FootballMatch[] = events.map((e: any) => {
+      const homeScore = e.intHomeScore != null ? parseInt(e.intHomeScore) : null;
+      const awayScore = e.intAwayScore != null ? parseInt(e.intAwayScore) : null;
+      let status = 'NS';
+      if (e.strStatus === 'Match Finished') status = 'FT';
+      else if (e.strStatus === 'Half Time') status = 'HT';
+      else if (e.strProgress) status = 'LIVE';
+
+      return {
+        id: e.idEvent,
+        homeTeam: e.strHomeTeam ?? 'Home',
+        awayTeam: e.strAwayTeam ?? 'Away',
+        homeScore: isNaN(homeScore as any) ? null : homeScore,
+        awayScore: isNaN(awayScore as any) ? null : awayScore,
+        status,
+        minute: e.strProgress ? parseInt(e.strProgress) : null,
+        competition: e.strLeague ?? e.strSport ?? 'Soccer',
+        kickoff: e.strTimestamp ?? e.dateEvent + 'T' + (e.strTime ?? '00:00:00') + 'Z',
+        homeLogo: e.strHomeTeamBadge ?? '',
+        awayLogo: e.strAwayTeamBadge ?? '',
+      };
+    });
+
+    footballCache = matches;
+    footballCacheTime = Date.now();
+    res.json(matches);
+  } catch (err: any) {
+    // Return mock data on failure so UI always shows something
+    res.status(200).json([]);
+  }
+});
+
 // Health check
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', ts: new Date().toISOString(), uptime: process.uptime(), apiKey: !!TIKTOOLS_API_KEY });
