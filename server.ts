@@ -458,6 +458,31 @@ app.post('/api/tts', async (req: Request, res: Response) => {
   res.status(502).json({ error: 'All TTS services unavailable' });
 });
 
+// ── IPTV proxy — fetches M3U playlists server-side to bypass CORS ─────────────
+app.get('/api/iptv-proxy', async (req: Request, res: Response) => {
+  const { url } = req.query as { url?: string };
+  if (!url) return res.status(400).send('url required');
+
+  // Only allow http/https URLs
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return res.status(400).send('invalid url'); }
+  if (!['http:', 'https:'].includes(parsed.protocol)) return res.status(400).send('only http/https allowed');
+
+  try {
+    const r = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; IPTV-Proxy/1.0)' },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!r.ok) return res.status(r.status).send(`upstream ${r.status}`);
+    const text = await r.text();
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.send(text);
+  } catch (err: any) {
+    res.status(502).send(err?.message ?? 'fetch failed');
+  }
+});
+
 // Health check
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', ts: new Date().toISOString(), uptime: process.uptime(), apiKey: !!TIKTOOLS_API_KEY });

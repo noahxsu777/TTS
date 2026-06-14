@@ -11,6 +11,7 @@ import BattlePanel from './components/BattlePanel';
 import BoosterTracker from './components/BoosterTracker';
 import ConfigPanel from './components/ConfigPanel';
 import ProfileLookup from './components/ProfileLookup';
+import IPTVPlayer from './components/IPTVPlayer';
 
 // ── Default config ────────────────────────────────────────────────────────────
 const DEFAULT_CONFIG: AppConfig = {
@@ -353,6 +354,9 @@ export default function App() {
 
           {/* Profile Lookup */}
           <ProfileLookup />
+
+          {/* IPTV Player */}
+          <IPTVPlayer />
         </main>
 
         <footer className="py-4 text-center">
