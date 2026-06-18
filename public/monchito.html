@@ -643,6 +643,7 @@ const CHANNELS = [
     cat: 'fútbol',
     url: 'https://latamvidzfy.org/dsports.php',
     gradient: 'linear-gradient(145deg,#001a6e 0%,#0038cc 60%,#1a5cff 100%)',
+    img: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/argentina/dsports-ar.png',
     logoLines: ['D·Sports'],
     logoSub: 'HD',
     live: true,
@@ -654,6 +655,7 @@ const CHANNELS = [
     cat: 'fútbol',
     url: 'https://latamvidzfy.org/dsportsplus.php',
     gradient: 'linear-gradient(145deg,#00116e 0%,#0a2ecc 60%,#5a7aff 100%)',
+    img: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/argentina/dsports-plus-ar.png',
     logoLines: ['D·Sports+'],
     logoSub: 'HD',
     live: true,
@@ -665,7 +667,20 @@ const CHANNELS = [
     cat: 'fútbol',
     url: 'https://tvtvhd.com/tv/canales.php?stream=dsportsplus',
     gradient: 'linear-gradient(145deg,#000d5c 0%,#0820aa 60%,#4060ee 100%)',
+    img: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/argentina/dsports-plus-2-ar.png',
     logoLines: ['D·Sports+', '2'],
+    logoSub: 'HD',
+    live: true,
+    hd: true,
+  },
+  {
+    id: 'tycsports',
+    name: 'TyC Sports',
+    cat: 'fútbol',
+    url: 'https://dntaf.vivolatamz.org/tycsports/index.m3u8?token=d9dc3947d77e07dbc2570f094a36eed89f587858-51-1781793278-1781739278&ip=47.164.71.19',
+    gradient: 'linear-gradient(145deg,#002060 0%,#003da5 60%,#1a6aff 100%)',
+    img: 'https://raw.githubusercontent.com/tv-logo/tv-logos/main/countries/argentina/tyc-sports-ar.png',
+    logoLines: ['TyC','Sports'],
     logoSub: 'HD',
     live: true,
     hd: true,
@@ -994,6 +1009,16 @@ async function openChannel(id) {
   renderBottomChips();
   showBar(true);
 
+  clearTimeout(window._loadTimer);
+  window._loadTimer = setTimeout(() => loadingEl.classList.add('gone'), 1500);
+
+  // If the channel URL is already a direct stream — play immediately, no extraction needed
+  if (ch.url.includes('.m3u8') || ch.url.startsWith('rtmp://')) {
+    showToast('✅ Stream directo — sin publicidad', 2000);
+    playHLS(ch.url);
+    return;
+  }
+
   // Try to extract direct stream (ad-free) with 5s timeout
   let stream = null, type = null;
   try {
@@ -1003,11 +1028,7 @@ async function openChannel(id) {
     stream = data.stream; type = data.type;
   } catch {}
 
-  clearTimeout(window._loadTimer);
-  window._loadTimer = setTimeout(() => loadingEl.classList.add('gone'), 1500);
-
   if (type === 'hls' && stream) {
-    // Best case: direct m3u8 → no ads, native volume control
     showToast('✅ Stream directo — sin publicidad', 2500);
     playHLS(stream);
   } else if (type === 'iframe' && stream) {
