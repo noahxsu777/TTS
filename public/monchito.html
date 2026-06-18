@@ -476,6 +476,58 @@ html,body{
 .cast-lbl{font-size:12px;font-weight:700;color:var(--text);}
 .cast-desc{font-size:10px;color:var(--text3);line-height:1.3;}
 
+/* ── SETTINGS SCREEN ────────────────────────────────────────────────── */
+#settings-screen{background:transparent;}
+.settings-header{
+  flex-shrink:0;padding:env(safe-area-inset-top,0px) 0 0;
+  background:rgba(7,7,15,0.7);backdrop-filter:blur(24px) saturate(1.5);
+  -webkit-backdrop-filter:blur(24px) saturate(1.5);
+  border-bottom:1px solid var(--border);z-index:10;
+}
+.settings-header-inner{display:flex;align-items:center;gap:14px;padding:16px 20px;}
+.settings-back-btn{
+  width:36px;height:36px;border-radius:10px;border:none;
+  background:var(--surface2);display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:var(--text);flex-shrink:0;
+}
+.settings-title-txt{font-size:18px;font-weight:700;flex:1;}
+.settings-wrap{flex:1;overflow-y:auto;padding:20px 16px 120px;}
+.settings-section{margin-bottom:24px;}
+.settings-section-title{
+  font-size:11px;font-weight:700;letter-spacing:0.08em;
+  color:var(--text3);text-transform:uppercase;padding:0 4px 10px;
+}
+.settings-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);overflow:hidden;
+}
+.lang-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px;}
+.lang-card{
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  padding:18px 10px;border-radius:14px;border:2px solid var(--border);
+  background:var(--surface2);cursor:pointer;
+  transition:border-color 0.2s,background 0.2s;
+}
+.lang-card.active{border-color:var(--purple);background:var(--purple-dim);}
+.lang-flag{font-size:30px;line-height:1;}
+.lang-name{font-size:14px;font-weight:700;color:var(--text);}
+.lang-code{font-size:10px;color:var(--text3);}
+.about-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);padding:20px;
+}
+.about-top{display:flex;align-items:center;gap:14px;margin-bottom:16px;}
+.about-logo-img{
+  width:50px;height:50px;border-radius:14px;overflow:hidden;
+  background:linear-gradient(135deg,#7c3aed,#4f46e5,#3b82f6);flex-shrink:0;
+}
+.about-logo-img img{width:100%;height:100%;object-fit:cover;}
+.about-app-name{font-size:16px;font-weight:800;color:var(--text);}
+.about-version{font-size:12px;color:var(--text3);margin-top:3px;}
+.about-divider{height:1px;background:var(--border);margin:14px 0;}
+.about-disclaimer{font-size:12px;line-height:1.7;color:var(--text3);}
+.about-disclaimer strong{color:var(--text2);}
+
 /* ── RESPONSIVE ──────────────────────────────────────────────────────── */
 @media(max-width:640px){
   .channel-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
@@ -521,49 +573,54 @@ html,body{
           </div>
           <div class="logo-text">
             <div class="logo-title">Monchito Sport TV</div>
-            <div class="logo-sub">Deportes HD en vivo</div>
+            <div class="logo-sub" data-i18n="appSub">Deportes HD en vivo</div>
           </div>
         </div>
         <div class="header-badges">
           <div class="badge-live">
             <div class="dot-live"></div>
-            <span>EN VIVO</span>
+            <span data-i18n="liveLabel">EN VIVO</span>
           </div>
           <div class="header-time" id="header-time">--:--</div>
+          <button class="ptb-btn" onclick="openSettings()" title="Ajustes" style="width:34px;height:34px;border-radius:10px;background:var(--surface2);border:1px solid var(--border);">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+            </svg>
+          </button>
         </div>
       </div>
       <div class="search-wrap">
         <svg class="search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
-        <input class="search-input" type="search" id="search-input" placeholder="Buscar canal…" autocomplete="off" spellcheck="false"/>
+        <input class="search-input" type="search" id="search-input" data-i18n-placeholder="searchPlaceholder" placeholder="Buscar canal…" autocomplete="off" spellcheck="false"/>
       </div>
     </div>
   </div>
 
   <!-- Categories -->
   <div class="cats-wrap" id="cats-wrap">
-    <button class="cat-btn active" data-cat="todos"><span class="cat-emoji">⚡</span>Todos</button>
-    <button class="cat-btn" data-cat="fútbol"><span class="cat-emoji">⚽</span>Fútbol</button>
-    <button class="cat-btn" data-cat="básquet"><span class="cat-emoji">🏀</span>Básquet</button>
-    <button class="cat-btn" data-cat="tenis"><span class="cat-emoji">🎾</span>Tenis</button>
-    <button class="cat-btn" data-cat="boxeo"><span class="cat-emoji">🥊</span>Boxeo</button>
-    <button class="cat-btn" data-cat="automovilismo"><span class="cat-emoji">🏎️</span>Automovilismo</button>
-    <button class="cat-btn" data-cat="otros"><span class="cat-emoji">🎯</span>Otros</button>
+    <button class="cat-btn active" data-cat="todos"><span class="cat-emoji">⚡</span><span data-i18n="catAll">Todos</span></button>
+    <button class="cat-btn" data-cat="fútbol"><span class="cat-emoji">⚽</span><span data-i18n="catFootball">Fútbol</span></button>
+    <button class="cat-btn" data-cat="básquet"><span class="cat-emoji">🏀</span><span data-i18n="catBasket">Básquet</span></button>
+    <button class="cat-btn" data-cat="tenis"><span class="cat-emoji">🎾</span><span data-i18n="catTenis">Tenis</span></button>
+    <button class="cat-btn" data-cat="boxeo"><span class="cat-emoji">🥊</span><span data-i18n="catBoxeo">Boxeo</span></button>
+    <button class="cat-btn" data-cat="automovilismo"><span class="cat-emoji">🏎️</span><span data-i18n="catAuto">Automovilismo</span></button>
+    <button class="cat-btn" data-cat="otros"><span class="cat-emoji">🎯</span><span data-i18n="catOtros">Otros</span></button>
   </div>
 
   <!-- Grid -->
   <div class="grid-wrap">
     <div class="section-hdr">
-      <h2>Canales disponibles <span class="count" id="count-label"></span></h2>
+      <h2><span data-i18n="channelsAvailable">Canales disponibles</span> <span class="count" id="count-label"></span></h2>
     </div>
     <div class="channel-grid" id="channel-grid"></div>
     <div class="no-results" id="no-results" style="display:none">
       <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" color="rgba(240,240,255,0.2)">
         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
       </svg>
-      <p>Sin resultados</p>
-      <small>Intenta con otro término</small>
+      <p data-i18n="noResults">Sin resultados</p>
+      <small data-i18n="noResultsSub">Intenta con otro término</small>
     </div>
   </div>
 
@@ -574,19 +631,25 @@ html,body{
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
         </svg>
-        <span>Inicio</span>
+        <span data-i18n="navHome">Inicio</span>
       </button>
       <button class="nav-btn" onclick="navTo('buscar')">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
-        <span>Buscar</span>
+        <span data-i18n="navSearch">Buscar</span>
       </button>
       <button class="nav-btn" onclick="navTo('favoritos')">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
         </svg>
-        <span>Favoritos</span>
+        <span data-i18n="navFav">Favoritos</span>
+      </button>
+      <button class="nav-btn" onclick="openSettings()">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+        </svg>
+        <span data-i18n="navSettings">Ajustes</span>
       </button>
     </div>
   </div>
@@ -683,6 +746,64 @@ html,body{
 <div class="toast" id="toast"></div>
 
 <script>
+// ── i18n ─────────────────────────────────────────────────────────────────────
+const APP_VERSION = '1.3.0';
+const TRANSLATIONS = {
+  es: {
+    appSub:'Deportes HD en vivo', liveLabel:'EN VIVO',
+    searchPlaceholder:'Buscar canal…',
+    catAll:'Todos', catFootball:'Fútbol', catBasket:'Básquet',
+    catTenis:'Tenis', catBoxeo:'Boxeo', catAuto:'Automovilismo', catOtros:'Otros',
+    channelsAvailable:'Canales disponibles',
+    noResults:'Sin resultados', noResultsSub:'Intenta con otro término',
+    navHome:'Inicio', navSearch:'Buscar', navFav:'Favoritos', navSettings:'Ajustes',
+    settingsTitle:'Ajustes', langSection:'Idioma', langES:'Español', langEN:'English',
+    aboutSection:'Acerca de', aboutVersion:'Versión',
+    disclaimer:'Esta aplicación <strong>no aloja ningún contenido multimedia</strong>. Monchito Sport TV únicamente retransmite señales de terceros disponibles públicamente en internet. No somos responsables del contenido emitido por dichas fuentes.',
+  },
+  en: {
+    appSub:'Live Sports HD', liveLabel:'LIVE',
+    searchPlaceholder:'Search channel…',
+    catAll:'All', catFootball:'Football', catBasket:'Basketball',
+    catTenis:'Tennis', catBoxeo:'Boxing', catAuto:'Motorsport', catOtros:'Others',
+    channelsAvailable:'Available channels',
+    noResults:'No results', noResultsSub:'Try a different term',
+    navHome:'Home', navSearch:'Search', navFav:'Favorites', navSettings:'Settings',
+    settingsTitle:'Settings', langSection:'Language', langES:'Spanish', langEN:'English',
+    aboutSection:'About', aboutVersion:'Version',
+    disclaimer:'This application <strong>does not host any media content</strong>. Monchito Sport TV only retransmits third-party signals publicly available on the internet. We are not responsible for the content broadcast by those sources.',
+  },
+};
+let currentLang = localStorage.getItem('monchito-lang') || 'es';
+function t(key) { return TRANSLATIONS[currentLang]?.[key] ?? TRANSLATIONS.es[key] ?? key; }
+
+function applyLang() {
+  document.querySelectorAll('[data-i18n]').forEach(el => { el.textContent = t(el.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-html]').forEach(el => { el.innerHTML = t(el.dataset.i18nHtml); });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => { el.placeholder = t(el.dataset.i18nPlaceholder); });
+  document.querySelectorAll('.lang-card').forEach(c => c.classList.toggle('active', c.dataset.lang === currentLang));
+}
+function setLang(lang) {
+  currentLang = lang;
+  localStorage.setItem('monchito-lang', lang);
+  applyLang();
+}
+
+// ── Settings screen ───────────────────────────────────────────────────────────
+function openSettings() {
+  const s = document.getElementById('settings-screen');
+  const h = document.getElementById('home-screen');
+  s.classList.remove('slide-in-hidden');
+  h.classList.add('slide-out');
+  applyLang();
+}
+function closeSettings() {
+  const s = document.getElementById('settings-screen');
+  const h = document.getElementById('home-screen');
+  s.classList.add('slide-in-hidden');
+  h.classList.remove('slide-out');
+}
+
 // ── Channel definitions ──────────────────────────────────────────────────────
 // gradient: CSS background value for the card thumbnail
 // logoLines: array of text lines to render in the card logo area
@@ -1409,6 +1530,7 @@ function navTo(section) {
 
 // ── Init ──────────────────────────────────────────────────────────────────────
 function init() {
+  applyLang();
   renderGrid();
 
   // Category buttons
@@ -1440,6 +1562,64 @@ function init() {
 
 document.addEventListener('DOMContentLoaded', init);
 </script>
+
+<!-- ══ SETTINGS SCREEN ══════════════════════════════════════════════════ -->
+<div class="screen slide-in-hidden" id="settings-screen">
+  <div class="settings-header">
+    <div class="settings-header-inner">
+      <button class="settings-back-btn" onclick="closeSettings()">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M19 12H5"/><path d="M12 5l-7 7 7 7"/>
+        </svg>
+      </button>
+      <div class="settings-title-txt" data-i18n="settingsTitle">Ajustes</div>
+    </div>
+  </div>
+
+  <div class="settings-wrap">
+
+    <!-- Language -->
+    <div class="settings-section">
+      <div class="settings-section-title" data-i18n="langSection">Idioma</div>
+      <div class="settings-card">
+        <div class="lang-grid">
+          <div class="lang-card active" data-lang="es" onclick="setLang('es')">
+            <div class="lang-flag">🇪🇸</div>
+            <div class="lang-name" data-i18n="langES">Español</div>
+            <div class="lang-code">ES</div>
+          </div>
+          <div class="lang-card" data-lang="en" onclick="setLang('en')">
+            <div class="lang-flag">🇺🇸</div>
+            <div class="lang-name" data-i18n="langEN">English</div>
+            <div class="lang-code">EN</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- About -->
+    <div class="settings-section">
+      <div class="settings-section-title" data-i18n="aboutSection">Acerca de</div>
+      <div class="about-card">
+        <div class="about-top">
+          <div class="about-logo-img">
+            <img src="https://s.t13.cl/sites/default/files/styles/manualcrop_850x475/public/t13/field-imagen/2019-06/1560278097-1541869473-foto0000001720180810121325.jpg.jpeg?itok=seVptoVr"
+              alt="Monchito" onerror="this.style.display='none'"/>
+          </div>
+          <div>
+            <div class="about-app-name">Monchito Sport TV</div>
+            <div class="about-version"><span data-i18n="aboutVersion">Versión</span> 1.3.0</div>
+          </div>
+        </div>
+        <div class="about-divider"></div>
+        <div class="about-disclaimer" data-i18n-html="disclaimer">
+          Esta aplicación <strong>no aloja ningún contenido multimedia</strong>. Monchito Sport TV únicamente retransmite señales de terceros disponibles públicamente en internet. No somos responsables del contenido emitido por dichas fuentes.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
 
 <!-- ══ CAST MODAL ════════════════════════════════════════════════════════ -->
 <div class="cast-overlay" id="cast-overlay" onclick="closeCastModal(event)">
