@@ -492,7 +492,7 @@ html,body{
 }
 .settings-title-txt{font-size:18px;font-weight:700;flex:1;}
 .settings-wrap{flex:1;overflow-y:auto;padding:20px 16px 120px;}
-.settings-section{margin-bottom:24px;}
+.settings-section{margin-bottom:22px;}
 .settings-section-title{
   font-size:11px;font-weight:700;letter-spacing:0.08em;
   color:var(--text3);text-transform:uppercase;padding:0 4px 10px;
@@ -501,6 +501,51 @@ html,body{
   background:var(--surface);border:1px solid var(--border);
   border-radius:var(--radius-lg);overflow:hidden;
 }
+/* Row */
+.settings-row{
+  display:flex;align-items:center;gap:14px;
+  padding:14px 16px;border-bottom:1px solid var(--border);
+  transition:background 0.15s;
+}
+.settings-row:last-child{border-bottom:none;}
+.settings-row:active{background:var(--surface2);}
+.settings-row-ico{
+  width:36px;height:36px;border-radius:10px;
+  display:flex;align-items:center;justify-content:center;
+  flex-shrink:0;font-size:18px;
+}
+.settings-row-body{flex:1;min-width:0;}
+.settings-row-label{font-size:14px;font-weight:600;color:var(--text);}
+.settings-row-desc{font-size:11px;color:var(--text3);margin-top:2px;}
+.settings-row-right{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+/* Toggle */
+.settings-toggle{
+  width:46px;height:26px;background:var(--surface3);border-radius:13px;
+  position:relative;cursor:pointer;transition:background 0.25s;
+  border:none;flex-shrink:0;padding:0;
+}
+.settings-toggle.on{background:var(--purple);}
+.settings-toggle::after{
+  content:'';position:absolute;width:20px;height:20px;
+  background:#fff;border-radius:50%;top:3px;left:3px;
+  transition:transform 0.25s;box-shadow:0 1px 4px rgba(0,0,0,0.3);
+}
+.settings-toggle.on::after{transform:translateX(20px);}
+/* Grid cols */
+.grid-cols-btns{display:flex;gap:5px;}
+.grid-col-btn{
+  width:32px;height:28px;border-radius:8px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text3);font-size:13px;font-weight:700;
+  cursor:pointer;transition:all 0.15s;
+}
+.grid-col-btn.active{background:var(--purple-dim);border-color:var(--purple);color:var(--purple);}
+/* Select */
+.settings-select{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:8px;color:var(--text);font-size:12px;font-weight:600;
+  padding:6px 10px;cursor:pointer;
+}
+/* Language */
 .lang-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:14px;}
 .lang-card{
   display:flex;flex-direction:column;align-items:center;gap:8px;
@@ -512,6 +557,53 @@ html,body{
 .lang-flag{font-size:30px;line-height:1;}
 .lang-name{font-size:14px;font-weight:700;color:var(--text);}
 .lang-code{font-size:10px;color:var(--text3);}
+/* IPTV */
+.iptv-list{display:flex;flex-direction:column;}
+.iptv-row{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 16px;border-bottom:1px solid var(--border);
+}
+.iptv-row:last-child{border-bottom:none;}
+.iptv-row-ico{font-size:22px;flex-shrink:0;}
+.iptv-row-body{flex:1;min-width:0;}
+.iptv-row-name{font-size:14px;font-weight:600;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.iptv-row-meta{font-size:11px;color:var(--text3);margin-top:2px;}
+.iptv-row-actions{display:flex;gap:6px;flex-shrink:0;}
+.iptv-action-btn{
+  width:30px;height:30px;border-radius:8px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text2);font-size:15px;font-weight:700;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all 0.15s;
+}
+.iptv-action-btn.danger{color:var(--red);}
+.iptv-action-btn.danger:hover{background:rgba(239,68,68,0.1);}
+.iptv-empty{padding:24px;text-align:center;color:var(--text4);font-size:13px;}
+.iptv-add-trigger{
+  display:flex;align-items:center;gap:10px;
+  padding:14px 16px;cursor:pointer;color:var(--purple);
+  font-size:14px;font-weight:600;transition:background 0.15s;
+}
+.iptv-add-trigger:hover{background:var(--surface2);}
+.iptv-add-form{display:none;padding:14px 16px;border-top:1px solid var(--border);}
+.iptv-input{
+  width:100%;background:var(--surface2);border:1px solid var(--border);
+  border-radius:10px;color:var(--text);font-size:13px;
+  padding:10px 14px;margin-bottom:8px;transition:border-color 0.2s;
+}
+.iptv-input:focus{outline:none;border-color:var(--purple);}
+.iptv-form-btns{display:flex;gap:8px;justify-content:flex-end;}
+.iptv-cancel-btn{
+  padding:9px 16px;border-radius:10px;border:1px solid var(--border);
+  background:var(--surface2);color:var(--text2);font-size:13px;font-weight:600;cursor:pointer;
+}
+.iptv-submit-btn{
+  padding:9px 16px;border-radius:10px;border:none;
+  background:var(--purple);color:#fff;font-size:13px;font-weight:700;
+  cursor:pointer;transition:opacity 0.2s;
+}
+.iptv-submit-btn:disabled{opacity:0.5;cursor:not-allowed;}
+/* About */
 .about-card{
   background:var(--surface);border:1px solid var(--border);
   border-radius:var(--radius-lg);padding:20px;
@@ -790,18 +882,241 @@ function setLang(lang) {
 }
 
 // ── Settings screen ───────────────────────────────────────────────────────────
+const SETTINGS_DEFAULTS = {
+  autoplay: true,
+  quality: 'auto',
+  defaultVolume: 0.8,
+  autoFullscreen: false,
+  gridCols: 3,
+  animations: true,
+  showUnavailable: true,
+};
+let appSettings = { ...SETTINGS_DEFAULTS, ...JSON.parse(localStorage.getItem('monchito-settings') || '{}') };
+
+function saveSetting(key, value) {
+  appSettings[key] = value;
+  localStorage.setItem('monchito-settings', JSON.stringify(appSettings));
+  applySettings();
+}
+function toggleSetting(key) { saveSetting(key, !appSettings[key]); }
+
+function applySettings() {
+  const grid = document.getElementById('channel-grid');
+  if (grid) grid.style.gridTemplateColumns = `repeat(${appSettings.gridCols},1fr)`;
+  updateSettingsUI();
+  renderGrid();
+}
+
+function updateSettingsUI() {
+  ['autoplay','animations','showUnavailable','autoFullscreen'].forEach(key => {
+    const el = document.getElementById('toggle-' + key);
+    if (el) el.classList.toggle('on', !!appSettings[key]);
+  });
+  [2,3,4].forEach(n => {
+    const el = document.getElementById('grid-col-' + n);
+    if (el) el.classList.toggle('active', appSettings.gridCols === n);
+  });
+  const qs = document.getElementById('quality-select');
+  if (qs) qs.value = appSettings.quality;
+  const vs = document.getElementById('volume-select');
+  if (vs) vs.value = String(appSettings.defaultVolume);
+  // sync currentVolume
+  currentVolume = appSettings.defaultVolume;
+  const slider = document.getElementById('vol-slider');
+  if (slider) slider.value = String(Math.round(currentVolume * 100));
+}
+
+function setGridCols(n) { saveSetting('gridCols', n); }
+
+function clearAppCache() {
+  if (!confirm('¿Limpiar caché?')) return;
+  try { caches?.keys().then(keys => keys.forEach(k => caches.delete(k))); } catch {}
+  showToast('✅ Caché limpiado', 2000);
+}
+
+function exportSettings() {
+  const data = {
+    settings: appSettings,
+    playlists: iptvPlaylists,
+    lang: currentLang,
+    exportedAt: new Date().toISOString(),
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'monchito-config.json';
+  a.click();
+  showToast('✅ Configuración exportada', 2500);
+}
+
+function importSettingsClick() {
+  document.getElementById('import-file-input').click();
+}
+
+function importSettingsFile(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (data.settings) { appSettings = { ...SETTINGS_DEFAULTS, ...data.settings }; localStorage.setItem('monchito-settings', JSON.stringify(appSettings)); }
+      if (data.playlists) { iptvPlaylists = data.playlists; saveIptvPlaylists(); }
+      if (data.lang) { currentLang = data.lang; localStorage.setItem('monchito-lang', currentLang); }
+      applySettings();
+      applyLang();
+      renderIptvList();
+      showToast('✅ Configuración importada', 2500);
+    } catch { showToast('⚠️ Archivo inválido', 2000); }
+  };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+
+function resetAllSettings() {
+  if (!confirm('¿Restablecer TODOS los ajustes? Se eliminarán las listas IPTV.')) return;
+  appSettings = { ...SETTINGS_DEFAULTS };
+  localStorage.removeItem('monchito-settings');
+  localStorage.removeItem('monchito-iptv');
+  localStorage.removeItem('monchito-lang');
+  iptvPlaylists = [];
+  currentLang = 'es';
+  applySettings();
+  applyLang();
+  renderIptvList();
+  showToast('✅ Ajustes restablecidos', 2500);
+}
+
 function openSettings() {
   const s = document.getElementById('settings-screen');
   const h = document.getElementById('home-screen');
   s.classList.remove('slide-in-hidden');
   h.classList.add('slide-out');
   applyLang();
+  updateSettingsUI();
+  renderIptvList();
 }
 function closeSettings() {
-  const s = document.getElementById('settings-screen');
-  const h = document.getElementById('home-screen');
-  s.classList.add('slide-in-hidden');
-  h.classList.remove('slide-out');
+  document.getElementById('settings-screen').classList.add('slide-in-hidden');
+  document.getElementById('home-screen').classList.remove('slide-out');
+}
+
+// ── IPTV Playlists ────────────────────────────────────────────────────────────
+let iptvPlaylists = JSON.parse(localStorage.getItem('monchito-iptv') || '[]');
+
+function saveIptvPlaylists() { localStorage.setItem('monchito-iptv', JSON.stringify(iptvPlaylists)); }
+
+function getIptvChannels() {
+  return iptvPlaylists.flatMap((p, pi) =>
+    (p.channels || []).map(ch => ({
+      id: `iptv_${p.id}_${ch.id || pi}`,
+      name: ch.name,
+      cat: (ch.group || 'iptv').toLowerCase(),
+      url: ch.url,
+      img: ch.logo || '',
+      logoLines: [ch.name],
+      logoSub: ch.url.includes('.m3u8') ? 'HLS' : 'IPTV',
+      gradient: 'linear-gradient(145deg,#1a0a2e 0%,#2d1b4e 60%,#4a2d7a 100%)',
+      live: true,
+      hd: ch.url.includes('.m3u8'),
+      _iptvPlaylistId: p.id,
+    }))
+  );
+}
+
+function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function formatDate(iso) {
+  if (!iso) return '';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  } catch { return ''; }
+}
+
+function renderIptvList() {
+  const container = document.getElementById('iptv-list');
+  if (!container) return;
+  if (iptvPlaylists.length === 0) {
+    container.innerHTML = '<div class="iptv-empty">Sin listas guardadas</div>';
+    return;
+  }
+  container.innerHTML = iptvPlaylists.map(p => `
+    <div class="iptv-row">
+      <div class="iptv-row-ico">📋</div>
+      <div class="iptv-row-body">
+        <div class="iptv-row-name">${escHtml(p.name)}</div>
+        <div class="iptv-row-meta">${(p.channels||[]).length} canales · ${formatDate(p.loadedAt)}</div>
+      </div>
+      <div class="iptv-row-actions">
+        <button class="iptv-action-btn" onclick="refreshIptvPlaylist('${escHtml(p.id)}')" title="Actualizar">↻</button>
+        <button class="iptv-action-btn danger" onclick="removeIptvPlaylist('${escHtml(p.id)}')" title="Eliminar">×</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+async function addIptvPlaylist() {
+  const urlEl = document.getElementById('iptv-url-input');
+  const nameEl = document.getElementById('iptv-name-input');
+  const url = urlEl.value.trim();
+  const name = nameEl.value.trim() || 'Lista IPTV';
+  if (!url) { showToast('⚠️ Ingresa la URL de la lista', 2000); return; }
+  const btn = document.getElementById('iptv-add-btn');
+  btn.disabled = true; btn.textContent = 'Cargando…';
+  try {
+    const r = await fetch('/api/iptv-parse?url=' + encodeURIComponent(url));
+    const data = await r.json();
+    if (!data.channels || data.channels.length === 0) {
+      showToast('⚠️ ' + (data.error || 'No se encontraron canales'), 3000);
+    } else {
+      const playlist = { id: Date.now().toString(), name, url, channels: data.channels, loadedAt: new Date().toISOString() };
+      iptvPlaylists.push(playlist);
+      saveIptvPlaylists();
+      renderGrid();
+      renderIptvList();
+      closeIptvForm();
+      showToast('✅ ' + data.count + ' canales cargados', 3000);
+    }
+  } catch { showToast('⚠️ Error al cargar la lista', 2500); }
+  finally { btn.disabled = false; btn.textContent = 'Agregar'; }
+}
+
+async function refreshIptvPlaylist(id) {
+  const playlist = iptvPlaylists.find(p => p.id === id);
+  if (!playlist) return;
+  showToast('🔄 Actualizando…', 2000);
+  try {
+    const r = await fetch('/api/iptv-parse?url=' + encodeURIComponent(playlist.url));
+    const data = await r.json();
+    if (data.channels) {
+      playlist.channels = data.channels;
+      playlist.loadedAt = new Date().toISOString();
+      saveIptvPlaylists();
+      renderGrid();
+      renderIptvList();
+      showToast('✅ ' + data.count + ' canales actualizados', 2500);
+    }
+  } catch { showToast('⚠️ Error al actualizar', 2000); }
+}
+
+function removeIptvPlaylist(id) {
+  iptvPlaylists = iptvPlaylists.filter(p => p.id !== id);
+  saveIptvPlaylists();
+  renderGrid();
+  renderIptvList();
+  showToast('🗑️ Lista eliminada', 2000);
+}
+
+function showIptvForm() {
+  document.getElementById('iptv-add-form').style.display = 'block';
+  document.getElementById('iptv-add-trigger').style.display = 'none';
+  document.getElementById('iptv-url-input').focus();
+}
+function closeIptvForm() {
+  document.getElementById('iptv-add-form').style.display = 'none';
+  document.getElementById('iptv-add-trigger').style.display = 'flex';
+  document.getElementById('iptv-url-input').value = '';
+  document.getElementById('iptv-name-input').value = '';
 }
 
 // ── Channel definitions ──────────────────────────────────────────────────────
@@ -1563,7 +1878,7 @@ function init() {
 document.addEventListener('DOMContentLoaded', init);
 </script>
 
-<!-- ══ SETTINGS SCREEN ══════════════════════════════════════════════════ -->
+<!-- ══ SETTINGS SCREEN ══════════════════════════════════════════════════════ -->
 <div class="screen slide-in-hidden" id="settings-screen">
   <div class="settings-header">
     <div class="settings-header-inner">
@@ -1578,9 +1893,31 @@ document.addEventListener('DOMContentLoaded', init);
 
   <div class="settings-wrap">
 
-    <!-- Language -->
+    <!-- ── LISTAS IPTV ── -->
     <div class="settings-section">
-      <div class="settings-section-title" data-i18n="langSection">Idioma</div>
+      <div class="settings-section-title">📺 Listas IPTV</div>
+      <div class="settings-card">
+        <div class="iptv-list" id="iptv-list">
+          <div class="iptv-empty">Sin listas guardadas</div>
+        </div>
+        <div class="iptv-add-trigger" id="iptv-add-trigger" onclick="showIptvForm()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+          Agregar lista M3U / M3U8
+        </div>
+        <div class="iptv-add-form" id="iptv-add-form">
+          <input class="iptv-input" type="url" id="iptv-url-input" placeholder="https://mi-lista.m3u8" autocomplete="off"/>
+          <input class="iptv-input" type="text" id="iptv-name-input" placeholder="Nombre de la lista (opcional)" autocomplete="off"/>
+          <div class="iptv-form-btns">
+            <button class="iptv-cancel-btn" onclick="closeIptvForm()">Cancelar</button>
+            <button class="iptv-submit-btn" id="iptv-add-btn" onclick="addIptvPlaylist()">Agregar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── IDIOMA ── -->
+    <div class="settings-section">
+      <div class="settings-section-title" data-i18n="langSection">🌐 Idioma</div>
       <div class="settings-card">
         <div class="lang-grid">
           <div class="lang-card active" data-lang="es" onclick="setLang('es')">
@@ -1597,9 +1934,154 @@ document.addEventListener('DOMContentLoaded', init);
       </div>
     </div>
 
-    <!-- About -->
+    <!-- ── REPRODUCTOR ── -->
     <div class="settings-section">
-      <div class="settings-section-title" data-i18n="aboutSection">Acerca de</div>
+      <div class="settings-section-title">🎬 Reproductor</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="settings-row-ico" style="background:rgba(139,92,246,0.15);">▶️</div>
+          <div class="settings-row-body">
+            <div class="settings-row-label">Reproducción automática</div>
+            <div class="settings-row-desc">Inicia el canal al seleccionarlo</div>
+          </div>
+          <div class="settings-row-right">
+            <button class="settings-toggle on" id="toggle-autoplay" onclick="toggleSetting('autoplay')"></button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-ico" style="background:rgba(59,130,246,0.15);">🎯</div>
+          <div class="settings-row-body">
+            <div class="settings-row-label">Modo de stream</div>
+            <div class="settings-row-desc">Cómo se intenta cargar el canal</div>
+          </div>
+          <div class="settings-row-right">
+            <select class="settings-select" id="quality-select" onchange="saveSetting('quality', this.value)">
+              <option value="auto">Auto (HLS → iframe)</option>
+              <option value="hls">Solo HLS directo</option>
+              <option value="iframe">Solo iframe</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-ico" style="background:rgba(16,185,129,0.15);">🔊</div>
+          <div class="settings-row-body">
+            <div class="settings-row-label">Volumen inicial</div>
+            <div class="settings-row-desc">Volumen al abrir un canal</div>
+          </div>
+          <div class="settings-row-right">
+            <select class="settings-select" id="volume-select" onchange="saveSetting('defaultVolume', parseFloat(this.value))">
+              <option value="1">100%</option>
+              <option value="0.8" selected>80%</option>
+              <option value="0.6">60%</option>
+              <option value="0.4">40%</option>
+              <option value="0">Silencio</option>
+            </select>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-ico" style="background:rgba(245,158,11,0.15);">📺</div>
+          <div class="settings-row-body">
+            <div class="settings-row-label">Fullscreen automático</div>
+            <div class="settings-row-desc">Pantalla completa al abrir canal</div>
+          </div>
+          <div class="settings-row-right">
+            <button class="settings-toggle" id="toggle-autoFullscreen" onclick="toggleSetting('autoFullscreen')"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── APARIENCIA ── -->
+    <div class="settings-section">
+      <div class="settings-section-title">🎨 Apariencia</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="settings-row-ico" style="background:rgba(139,92,246,0.15);">⊞</div>
+          <div class="settings-row-body">
+            <div class="settings-row-label">Columnas de la cuadrícula</div>
+            <div class="settings-row-desc">Canales por fila</div>
+          </div>
+          <div class="settings-row-right">
+            <div class="grid-cols-btns">
+              <button class="grid-col-btn" id="grid-col-2" onclick="setGridCols(2)">2</button>
+              <button class="grid-col-btn active" id="grid-col-3" onclick="setGridCols(3)">3</button>
+              <button class="grid-col-btn" id="grid-col-4" onclick="setGridCols(4)">4</button>
+            </div>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-ico" style="background:rgba(6,182,212,0.15);">✨</div>
+          <div class="settings-row-body">
+            <div class="settings-row-label">Animaciones</div>
+            <div class="settings-row-desc">Efectos visuales y transiciones</div>
+          </div>
+          <div class="settings-row-right">
+            <button class="settings-toggle on" id="toggle-animations" onclick="toggleSetting('animations')"></button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-ico" style="background:rgba(239,68,68,0.15);">🔴</div>
+          <div class="settings-row-body">
+            <div class="settings-row-label">Mostrar canales próximamente</div>
+            <div class="settings-row-desc">Canales sin señal en la grilla</div>
+          </div>
+          <div class="settings-row-right">
+            <button class="settings-toggle on" id="toggle-showUnavailable" onclick="toggleSetting('showUnavailable')"></button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── DATOS Y PRIVACIDAD ── -->
+    <div class="settings-section">
+      <div class="settings-section-title">🔒 Datos y privacidad</div>
+      <div class="settings-card">
+        <div class="settings-row" style="cursor:pointer" onclick="clearAppCache()">
+          <div class="settings-row-ico" style="background:rgba(59,130,246,0.15);">🗑️</div>
+          <div class="settings-row-body">
+            <div class="settings-row-label">Limpiar caché</div>
+            <div class="settings-row-desc">Elimina datos temporales almacenados</div>
+          </div>
+          <div class="settings-row-right">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+        </div>
+        <div class="settings-row" style="cursor:pointer" onclick="exportSettings()">
+          <div class="settings-row-ico" style="background:rgba(16,185,129,0.15);">📤</div>
+          <div class="settings-row-body">
+            <div class="settings-row-label">Exportar configuración</div>
+            <div class="settings-row-desc">Guarda ajustes y listas IPTV</div>
+          </div>
+          <div class="settings-row-right">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+        </div>
+        <div class="settings-row" style="cursor:pointer" onclick="importSettingsClick()">
+          <div class="settings-row-ico" style="background:rgba(245,158,11,0.15);">📥</div>
+          <div class="settings-row-body">
+            <div class="settings-row-label">Importar configuración</div>
+            <div class="settings-row-desc">Restaura ajustes y listas guardadas</div>
+          </div>
+          <div class="settings-row-right">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+        </div>
+        <div class="settings-row" style="cursor:pointer" onclick="resetAllSettings()">
+          <div class="settings-row-ico" style="background:rgba(239,68,68,0.15);">⚠️</div>
+          <div class="settings-row-body">
+            <div class="settings-row-label" style="color:var(--red)">Restablecer ajustes</div>
+            <div class="settings-row-desc">Elimina toda la configuración guardada</div>
+          </div>
+          <div class="settings-row-right">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"><path d="M9 18l6-6-6-6"/></svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── ACERCA DE ── -->
+    <div class="settings-section">
+      <div class="settings-section-title" data-i18n="aboutSection">ℹ️ Acerca de</div>
       <div class="about-card">
         <div class="about-top">
           <div class="about-logo-img">
@@ -1608,7 +2090,7 @@ document.addEventListener('DOMContentLoaded', init);
           </div>
           <div>
             <div class="about-app-name">Monchito Sport TV</div>
-            <div class="about-version"><span data-i18n="aboutVersion">Versión</span> 1.3.0</div>
+            <div class="about-version"><span data-i18n="aboutVersion">Versión</span> 1.4.0</div>
           </div>
         </div>
         <div class="about-divider"></div>
@@ -1617,6 +2099,8 @@ document.addEventListener('DOMContentLoaded', init);
         </div>
       </div>
     </div>
+
+    <input type="file" id="import-file-input" accept=".json" style="display:none" onchange="importSettingsFile(event)"/>
 
   </div>
 </div>

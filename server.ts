@@ -606,6 +606,50 @@ app.get('/api/hls-proxy', async (req: Request, res: Response) => {
   }
 });
 
+// ── M3U playlist parser ───────────────────────────────────────────────────────
+app.get('/api/iptv-parse', async (req: Request, res: Response) => {
+  const url = req.query.url as string;
+  if (!url) return res.status(400).json({ error: 'missing url' });
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return res.status(400).json({ error: 'invalid url' }); }
+  if (!['http:', 'https:'].includes(parsed.protocol)) return res.status(400).json({ error: 'invalid protocol' });
+  try {
+    const r = await fetch(url, {
+      headers: { 'User-Agent': FETCH_HEADERS['User-Agent'] },
+      signal: AbortSignal.timeout(20000),
+    });
+    if (!r.ok) return res.status(r.status).json({ error: `upstream ${r.status}` });
+    const text = await r.text();
+    if (!text.includes('#EXTM3U') && !text.includes('#EXTINF')) {
+      return res.json({ channels: [], count: 0, error: 'not a valid M3U playlist' });
+    }
+    const channels: any[] = [];
+    const lines = text.split('\n');
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line.startsWith('#EXTINF')) continue;
+      const nameAttr = line.match(/tvg-name="([^"]*)"/)?.[1] ?? '';
+      const logo     = line.match(/tvg-logo="([^"]*)"/)?.[1] ?? '';
+      const group    = line.match(/group-title="([^"]*)"/)?.[1] ?? 'IPTV';
+      const tvgId    = line.match(/tvg-id="([^"]*)"/)?.[1] ?? '';
+      const displayName = line.split(',').slice(1).join(',').trim();
+      const name = nameAttr || displayName || 'Canal';
+      let streamUrl = '';
+      for (let j = i + 1; j < lines.length && j < i + 5; j++) {
+        const nl = lines[j].trim();
+        if (nl && !nl.startsWith('#')) { streamUrl = nl; break; }
+      }
+      if (streamUrl && (streamUrl.startsWith('http') || streamUrl.startsWith('rtmp'))) {
+        const safeId = (tvgId || name).toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+        channels.push({ id: safeId, name, url: streamUrl, logo, group });
+      }
+    }
+    res.json({ channels, count: channels.length });
+  } catch (err: any) {
+    res.status(502).json({ error: err?.message || 'fetch failed' });
+  }
+});
+
 // ── Channel page proxy (ad-strip + volume control injection) ─────────────────
 app.get('/api/ch-proxy', async (req: Request, res: Response) => {
   const rawUrl = req.query.url as string;
