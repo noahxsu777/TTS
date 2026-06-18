@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js"></script>
+<script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -427,6 +428,77 @@ html,body{
   font-variant-numeric:tabular-nums;
 }
 
+/* ── CAST MODAL ──────────────────────────────────────────────────────── */
+.cast-overlay{
+  position:fixed;inset:0;z-index:60;
+  background:rgba(0,0,0,0.72);
+  backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  display:flex;align-items:flex-end;justify-content:center;
+  opacity:0;pointer-events:none;
+  transition:opacity 0.25s;
+}
+.cast-overlay.show{opacity:1;pointer-events:all;}
+.cast-sheet{
+  width:100%;max-width:500px;
+  background:var(--surface);
+  border:1px solid var(--border2);
+  border-radius:24px 24px 0 0;
+  padding:0 20px 24px;
+  transform:translateY(100%);
+  transition:transform 0.32s cubic-bezier(.25,.46,.45,.94);
+}
+.cast-overlay.show .cast-sheet{transform:translateY(0);}
+.cast-handle{
+  width:40px;height:4px;border-radius:2px;
+  background:rgba(255,255,255,0.12);
+  margin:14px auto 18px;
+}
+.cast-hdr{text-align:center;margin-bottom:18px;}
+.cast-hdr h3{font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px;}
+.cast-hdr p{font-size:11px;color:var(--text3);}
+.cast-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.cast-card{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:16px;padding:16px 12px;
+  cursor:pointer;text-align:center;
+  display:flex;flex-direction:column;align-items:center;gap:8px;
+  transition:all 0.2s;-webkit-tap-highlight-color:transparent;
+}
+.cast-card:hover:not(.off){background:rgba(139,92,246,0.15);border-color:rgba(139,92,246,0.3);}
+.cast-card:active:not(.off){transform:scale(0.96);}
+.cast-card.off{opacity:0.35;cursor:not-allowed;}
+.cast-card.active-cast{background:rgba(139,92,246,0.25);border-color:var(--purple);box-shadow:0 0 20px rgba(139,92,246,0.25);}
+.cast-ico{
+  width:48px;height:48px;border-radius:14px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:22px;
+}
+.cast-lbl{font-size:12px;font-weight:700;color:var(--text);}
+.cast-desc{font-size:10px;color:var(--text3);line-height:1.3;}
+/* URL copy row */
+.cast-url-box{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:12px;padding:10px 14px;
+  display:none;
+}
+.cast-url-box.show{display:flex;align-items:center;gap:8px;}
+.cast-url-text{
+  flex:1;font-size:10px;color:var(--text3);font-family:monospace;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.cast-copy-btn{
+  flex-shrink:0;padding:6px 12px;border-radius:8px;
+  background:var(--purple);color:white;
+  font-size:11px;font-weight:700;cursor:pointer;border:none;
+  transition:opacity 0.2s;
+}
+.cast-copy-btn:hover{opacity:0.8;}
+.cast-no-url{
+  font-size:11px;color:var(--text4);text-align:center;
+  padding:8px;display:none;
+}
+.cast-no-url.show{display:block;}
+
 /* ── RESPONSIVE ──────────────────────────────────────────────────────── */
 @media(max-width:640px){
   .channel-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
@@ -558,6 +630,8 @@ html,body{
       style="position:absolute;inset:0;width:100%;height:100%;background:#000;display:none;"
       autoplay
       playsinline
+      x-webkit-airplay="allow"
+      airplay="allow"
     ></video>
     <!-- Iframe fallback (used when direct stream not found) -->
     <iframe
@@ -977,6 +1051,7 @@ function stopCurrentPlayer() {
 }
 
 function playHLS(url) {
+  currentHLSUrl = url;
   playerMode = 'hls';
   const video = document.getElementById('player-video');
   document.getElementById('player-iframe').style.display = 'none';
@@ -1195,21 +1270,121 @@ document.addEventListener('webkitfullscreenchange', () => {
   }
 });
 
-// ── Cast ──────────────────────────────────────────────────────────────────────
-async function toggleCast(e) {
-  if (e) e.stopPropagation();
-  const btn = document.getElementById('cast-btn');
+// ── Cast system ───────────────────────────────────────────────────────────────
+let currentHLSUrl = null; // stored when playHLS is called
+let castGCastReady = false;
 
+// Google Cast SDK callback
+window['__onGCastApiAvailable'] = function(isAvailable) {
+  if (!isAvailable) return;
+  castGCastReady = true;
+  try {
+    cast.framework.CastContext.getInstance().setOptions({
+      receiverApplicationId: chrome.cast.media.DEFAULT_MEDIA_RECEIVER_APP_ID,
+      autoJoinPolicy: chrome.cast.AutoJoinPolicy.ORIGIN_SCOPED,
+    });
+    document.getElementById('cast-opt-chromecast')?.classList.remove('off');
+  } catch {}
+};
+
+// AirPlay available check (Safari only)
+function checkAirPlay() {
+  const vid = document.getElementById('player-video');
+  if (vid && typeof vid.webkitShowPlaybackTargetPicker === 'function') {
+    document.getElementById('cast-opt-airplay')?.classList.remove('off');
+  }
+}
+
+function toggleCast(e) {
+  if (e) e.stopPropagation();
+  openCastModal();
+}
+
+function openCastModal() {
+  checkAirPlay();
+  // Show or hide the URL box based on whether we have a direct stream
+  const urlBox = document.getElementById('cast-url-box');
+  const noUrl  = document.getElementById('cast-no-url');
+  const urlText = document.getElementById('cast-url-text');
+  const sub = document.getElementById('cast-modal-subtitle');
+
+  const ch = CHANNELS.find(c => c.id === currentChId);
+  const streamUrl = currentHLSUrl || (ch?.url.includes('.m3u8') ? ch.url : null);
+
+  if (streamUrl) {
+    urlText.textContent = streamUrl;
+    urlBox.classList.add('show');
+    noUrl.classList.remove('show');
+    sub.textContent = 'Stream directo disponible ✅';
+    document.getElementById('cast-opt-url').classList.remove('off');
+  } else {
+    urlBox.classList.remove('show');
+    noUrl.classList.add('show');
+    sub.textContent = 'Canal por iframe — URL no disponible';
+    document.getElementById('cast-opt-url').classList.add('off');
+  }
+
+  document.getElementById('cast-overlay').classList.add('show');
+  showBar(true); // keep controls visible
+}
+
+function closeCastModal(e) {
+  if (e && e.target !== document.getElementById('cast-overlay')) return;
+  document.getElementById('cast-overlay').classList.remove('show');
+}
+
+// ── Cast: Chromecast ──────────────────────────────────────────────────────────
+function doCastChromecast() {
+  if (!castGCastReady) { showToast('⚠️ Chromecast no disponible en este navegador', 2500); return; }
+  const ch = CHANNELS.find(c => c.id === currentChId);
+  const url = currentHLSUrl || (ch?.url.includes('.m3u8') ? ch.url : null);
+  if (!url) { showToast('⚠️ Solo disponible para canales con stream directo', 2500); return; }
+
+  const ctx = cast.framework.CastContext.getInstance();
+  const doLoad = (session) => {
+    const mediaInfo = new chrome.cast.media.MediaInfo(url, 'application/x-mpegURL');
+    mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
+    mediaInfo.metadata.title = ch?.name || 'Monchito Sport TV';
+    const req = new chrome.cast.media.LoadRequest(mediaInfo);
+    session.loadMedia(req).then(
+      () => { showToast('📺 Transmitiendo en Chromecast', 3000); closeCastModal(null); },
+      err => showToast(`⚠️ Error: ${err}`, 2500)
+    );
+  };
+
+  const session = ctx.getCurrentSession();
+  if (session) { doLoad(session); }
+  else {
+    ctx.requestSession().then(() => {
+      const s = ctx.getCurrentSession();
+      if (s) doLoad(s);
+    }).catch(err => { if (err !== 'cancel') showToast('⚠️ No se pudo conectar al Chromecast', 2500); });
+  }
+}
+
+// ── Cast: AirPlay ─────────────────────────────────────────────────────────────
+function doCastAirPlay() {
+  const vid = document.getElementById('player-video');
+  if (vid && typeof vid.webkitShowPlaybackTargetPicker === 'function') {
+    closeCastModal(null);
+    vid.webkitShowPlaybackTargetPicker();
+  } else {
+    showToast('⚠️ AirPlay solo funciona en Safari / iOS', 2500);
+  }
+}
+
+// ── Cast: Screen Share ────────────────────────────────────────────────────────
+async function doCastScreen() {
+  closeCastModal(null);
   if (castStream) {
     castStream.getTracks().forEach(t => t.stop());
     castStream = null;
-    btn.classList.remove('btn-active');
+    document.getElementById('cast-btn').classList.remove('btn-active');
     try { castWindow?.close(); } catch {}
     castWindow = null;
     showToast('📺 Cast finalizado', 2000);
     return;
   }
-
   showToast('🖥️ Selecciona la pantalla a compartir…', 2500);
   try {
     const stream = await navigator.mediaDevices.getDisplayMedia({
@@ -1217,49 +1392,52 @@ async function toggleCast(e) {
       audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 48000 },
     });
     castStream = stream;
-    btn.classList.add('btn-active');
-
-    // Open a TV-style window
-    const w = window.open('', '_blank',
-      'width=1280,height=720,scrollbars=no,toolbar=no,menubar=no,location=no,status=no'
-    );
+    document.getElementById('cast-btn').classList.add('btn-active');
+    const w = window.open('', '_blank', 'width=1280,height=720,scrollbars=no,toolbar=no,menubar=no,location=no,status=no');
     if (w) {
       castWindow = w;
-      w.document.write(`<!DOCTYPE html><html><head>
-        <title>📺 Monchito TV — Cast</title>
+      w.document.write(`<!DOCTYPE html><html><head><title>📺 Monchito TV — Cast</title>
         <style>*{margin:0;padding:0;}html,body{background:#000;width:100%;height:100%;overflow:hidden;}
         video{width:100%;height:100%;object-fit:contain;}
         .lbl{position:fixed;top:12px;left:50%;transform:translateX(-50%);
-          background:rgba(139,92,246,0.85);color:white;padding:6px 16px;
-          border-radius:20px;font-family:sans-serif;font-size:12px;font-weight:600;
-          pointer-events:none;animation:fadeOut 3s 2s forwards;}
+          background:rgba(139,92,246,0.85);color:white;padding:6px 16px;border-radius:20px;
+          font-family:sans-serif;font-size:12px;font-weight:600;pointer-events:none;
+          animation:fadeOut 3s 2s forwards;}
         @keyframes fadeOut{to{opacity:0;}}</style></head>
         <body><video autoplay playsinline></video>
         <div class="lbl">📺 Monchito Sport TV · Cast activo</div></body></html>`);
       w.document.close();
       const vid = w.document.querySelector('video');
       if (vid) vid.srcObject = stream;
-      w.addEventListener('beforeunload', () => {
-        castStream = null;
-        btn.classList.remove('btn-active');
-        castWindow = null;
-      });
+      w.addEventListener('beforeunload', () => { castStream = null; document.getElementById('cast-btn').classList.remove('btn-active'); castWindow = null; });
     }
-
     stream.getVideoTracks()[0]?.addEventListener('ended', () => {
       castStream = null;
-      btn.classList.remove('btn-active');
+      document.getElementById('cast-btn').classList.remove('btn-active');
       try { castWindow?.close(); } catch {}
       castWindow = null;
       showToast('📺 Cast finalizado', 2000);
     });
-
-    showToast('📺 Transmitiendo a tu pantalla TV', 3000);
+    showToast('📺 Transmitiendo en pantalla', 3000);
   } catch (err) {
-    if (err.name !== 'NotAllowedError') {
-      showToast('⚠️ No se pudo iniciar el cast', 2500);
-    }
+    if (err.name !== 'NotAllowedError') showToast('⚠️ No se pudo iniciar el cast', 2500);
   }
+}
+
+// ── Cast: Copy URL ─────────────────────────────────────────────────────────────
+function doCastCopyUrl() {
+  const urlText = document.getElementById('cast-url-text')?.textContent;
+  if (!urlText) { showToast('⚠️ No hay URL disponible para este canal', 2500); return; }
+  copyStreamUrl();
+}
+
+function copyStreamUrl() {
+  const url = document.getElementById('cast-url-text')?.textContent;
+  if (!url) return;
+  navigator.clipboard.writeText(url).then(() => {
+    showToast('✅ URL copiada — pégala en VLC, Kodi o DLNA', 3000);
+    closeCastModal(null);
+  }).catch(() => showToast('⚠️ No se pudo copiar', 2000));
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -1315,5 +1493,76 @@ function init() {
 
 document.addEventListener('DOMContentLoaded', init);
 </script>
+
+<!-- ══ CAST MODAL ════════════════════════════════════════════════════════ -->
+<div class="cast-overlay" id="cast-overlay" onclick="closeCastModal(event)">
+  <div class="cast-sheet" onclick="event.stopPropagation()">
+    <div class="cast-handle"></div>
+    <div class="cast-hdr">
+      <h3>Transmitir a pantalla 📺</h3>
+      <p id="cast-modal-subtitle">Elige tu método de cast</p>
+    </div>
+
+    <div class="cast-grid">
+      <!-- Chromecast -->
+      <div class="cast-card off" id="cast-opt-chromecast" onclick="doCastChromecast()">
+        <div class="cast-ico" style="background:rgba(26,115,232,0.15);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+            <path d="M2 16.1A5 5 0 015.9 20M2 12.05A9 9 0 019.95 20M2 8V6a2 2 0 012-2h16a2 2 0 012 2v12a2 2 0 01-2 2h-6" stroke="#4285f4" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="2" cy="20" r="1" fill="#4285f4"/>
+          </svg>
+        </div>
+        <div class="cast-lbl">Chromecast</div>
+        <div class="cast-desc">Chrome · Android</div>
+      </div>
+
+      <!-- AirPlay -->
+      <div class="cast-card off" id="cast-opt-airplay" onclick="doCastAirPlay()">
+        <div class="cast-ico" style="background:rgba(255,255,255,0.06);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="2">
+            <path d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h16a2 2 0 012 2v10a2 2 0 01-2 2h-2"/>
+            <polygon points="12 15 17 21 7 21 12 15"/>
+          </svg>
+        </div>
+        <div class="cast-lbl">AirPlay</div>
+        <div class="cast-desc">Safari · iOS · macOS</div>
+      </div>
+
+      <!-- Screen Share -->
+      <div class="cast-card" id="cast-opt-screen" onclick="doCastScreen()">
+        <div class="cast-ico" style="background:rgba(139,92,246,0.15);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2">
+            <rect x="2" y="3" width="20" height="14" rx="2"/>
+            <path d="M8 21h8M12 17v4"/>
+          </svg>
+        </div>
+        <div class="cast-lbl">Compartir pantalla</div>
+        <div class="cast-desc">Cualquier pantalla / TV</div>
+      </div>
+
+      <!-- Copy URL (DLNA / Roku / VLC) -->
+      <div class="cast-card" id="cast-opt-url" onclick="doCastCopyUrl()">
+        <div class="cast-ico" style="background:rgba(16,185,129,0.15);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
+            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
+            <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
+          </svg>
+        </div>
+        <div class="cast-lbl">Copiar URL</div>
+        <div class="cast-desc">VLC · DLNA · Roku · Kodi</div>
+      </div>
+    </div>
+
+    <!-- URL display row -->
+    <div class="cast-url-box" id="cast-url-box">
+      <div class="cast-url-text" id="cast-url-text"></div>
+      <button class="cast-copy-btn" onclick="copyStreamUrl()">Copiar</button>
+    </div>
+    <div class="cast-no-url" id="cast-no-url">
+      ⚠️ URL disponible solo en canales con stream directo (m3u8).<br>
+      Para otros canales usa <strong>Compartir pantalla</strong>.
+    </div>
+  </div>
+</div>
 </body>
 </html>
