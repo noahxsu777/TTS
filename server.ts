@@ -606,92 +606,158 @@ app.get('/api/hls-proxy', async (req: Request, res: Response) => {
   }
 });
 
-// ── M3U playlist parser ───────────────────────────────────────────────────────
+// ── M3U playlist parser (compatible with all IPTV formats) ───────────────────
 app.get('/api/iptv-parse', async (req: Request, res: Response) => {
   const url = req.query.url as string;
-  if (!url) return res.status(400).json({ error: 'URL requerida' });
+  if (!url) return res.json({ channels: [], count: 0, error: 'URL requerida' });
+
   let parsed: URL;
-  try { parsed = new URL(url); } catch { return res.status(400).json({ error: 'URL inválida' }); }
-  if (!['http:', 'https:'].includes(parsed.protocol)) return res.status(400).json({ error: 'Solo URLs http/https' });
+  try { parsed = new URL(url); } catch {
+    return res.json({ channels: [], count: 0, error: 'URL inválida — debe empezar con http:// o https://' });
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol)) {
+    return res.json({ channels: [], count: 0, error: 'Solo se aceptan URLs http:// y https://' });
+  }
 
-  const fetchHeaders = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-    'Accept': '*/*',
-    'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'Connection': 'keep-alive',
-    'Referer': parsed.origin + '/',
-  };
+  // Try multiple User-Agents — VLC/Kodi are whitelisted by most IPTV providers
+  const userAgents = [
+    'VLC/3.0.20 LibVLC/3.0.20',
+    'Kodi/19.4 (X11; Linux x86_64) App_Bitness/64 Version/19.4-Matrix-19.4.0',
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36',
+    'okhttp/4.9.0',
+  ];
 
-  try {
-    const r = await fetch(url, {
-      headers: fetchHeaders,
-      redirect: 'follow',
-      signal: AbortSignal.timeout(30000),
-    });
+  let text = '';
+  let lastError = '';
 
-    if (!r.ok) {
-      return res.status(200).json({
-        channels: [], count: 0,
-        error: `El servidor de la lista respondió con error ${r.status}. Verifica que la URL sea correcta y accesible.`,
+  for (const ua of userAgents) {
+    try {
+      const r = await fetch(url, {
+        headers: {
+          'User-Agent': ua,
+          'Accept': '*/*',
+          'Accept-Language': 'es,en;q=0.8',
+          'Connection': 'keep-alive',
+          'Icy-MetaData': '1',
+        },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(30000),
       });
+      if (!r.ok) { lastError = `El servidor respondió con código ${r.status}`; continue; }
+      const t = await r.text();
+      if (t && t.length > 10) { text = t; break; }
+      lastError = 'El servidor devolvió una respuesta vacía';
+    } catch (e: any) {
+      lastError = e?.message?.includes('timeout') ? 'Tiempo de espera agotado' : (e?.message || 'Error de conexión');
     }
+  }
 
-    const text = await r.text();
+  if (!text) {
+    return res.json({ channels: [], count: 0, error: `No se pudo descargar la lista. ${lastError}. Verifica que la URL esté activa y accesible.` });
+  }
 
-    // Normalize line endings
-    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  // Normalize
+  const norm = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
 
-    if (!normalized.includes('#EXTM3U') && !normalized.includes('#EXTINF')) {
-      return res.status(200).json({
-        channels: [], count: 0,
-        error: 'La URL no es una lista M3U válida. Asegúrate de que sea un archivo .m3u o .m3u8 real.',
-      });
-    }
+  // Detect HTML (login wall, error page)
+  if (/^<!doctype|^<html/i.test(norm)) {
+    return res.json({ channels: [], count: 0, error: 'La URL devolvió una página web en lugar de una lista. Puede requerir inicio de sesión o la URL es incorrecta.' });
+  }
 
-    const channels: any[] = [];
-    const seen = new Set<string>();
-    const lines = normalized.split('\n');
+  const lines = norm.split('\n');
+  const channels: any[] = [];
+  const seen = new Set<string>();
+  const baseUrl = url.substring(0, url.lastIndexOf('/') + 1);
 
+  function attr(line: string, key: string): string {
+    return line.match(new RegExp(`${key}=["']([^"']*)["']`))?.[1]
+        ?? line.match(new RegExp(`${key}=([^\\s,>]+)`))?.[1]
+        ?? '';
+  }
+  function toAbsolute(u: string): string {
+    if (u.startsWith('http') || u.startsWith('rtmp')) return u;
+    if (u.startsWith('/')) return parsed.origin + u;
+    return baseUrl + u;
+  }
+  function addChannel(id: string, name: string, url: string, logo: string, group: string) {
+    const abs = toAbsolute(url);
+    if (seen.has(abs)) return;
+    seen.add(abs);
+    const safeId = id.toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 60) || `ch${channels.length}`;
+    channels.push({ id: safeId, name: name || 'Canal', url: abs, logo, group: group || 'IPTV' });
+  }
+
+  // ── Format 1: Standard M3U (#EXTINF) ─────────────────────────────────────
+  if (norm.includes('#EXTINF')) {
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim();
       if (!line.startsWith('#EXTINF')) continue;
-
-      const nameAttr = line.match(/tvg-name="([^"]*)"/)?.[1]
-                    ?? line.match(/tvg-name='([^']*)'/)?.[1] ?? '';
-      const logo     = line.match(/tvg-logo="([^"]*)"/)?.[1]
-                    ?? line.match(/tvg-logo='([^']*)'/)?.[1] ?? '';
-      const group    = line.match(/group-title="([^"]*)"/)?.[1]
-                    ?? line.match(/group-title='([^']*)'/)?.[1] ?? 'IPTV';
-      const tvgId    = line.match(/tvg-id="([^"]*)"/)?.[1]
-                    ?? line.match(/tvg-id='([^']*)'/)?.[1] ?? '';
-
-      const commaIdx = line.lastIndexOf(',');
-      const displayName = commaIdx >= 0 ? line.slice(commaIdx + 1).trim() : '';
-      const name = nameAttr || displayName || 'Canal';
-
+      const name = attr(line, 'tvg-name') || line.slice(line.lastIndexOf(',') + 1).trim();
+      const logo = attr(line, 'tvg-logo');
+      const group = attr(line, 'group-title');
+      const tvgId = attr(line, 'tvg-id');
       let streamUrl = '';
-      for (let j = i + 1; j < lines.length && j < i + 8; j++) {
+      for (let j = i + 1; j < lines.length && j < i + 10; j++) {
         const nl = lines[j].trim();
         if (nl && !nl.startsWith('#')) { streamUrl = nl; break; }
       }
-
-      if (!streamUrl || (!streamUrl.startsWith('http') && !streamUrl.startsWith('rtmp'))) continue;
-      if (seen.has(streamUrl)) continue;
-      seen.add(streamUrl);
-
-      const safeId = (tvgId || name).toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').slice(0, 60);
-      channels.push({ id: safeId, name, url: streamUrl, logo, group });
+      if (!streamUrl) continue;
+      addChannel(tvgId || name, name, streamUrl, logo, group);
     }
-
-    res.json({ channels, count: channels.length });
-  } catch (err: any) {
-    const msg = err?.message || 'Error de red';
-    const friendly = msg.includes('timeout') || msg.includes('Timeout')
-      ? 'La lista tardó demasiado en cargar. Intenta con otra URL.'
-      : `No se pudo descargar la lista: ${msg}`;
-    res.status(200).json({ channels: [], count: 0, error: friendly });
   }
+
+  // ── Format 2: HLS Master Playlist (#EXT-X-STREAM-INF) ────────────────────
+  if (channels.length === 0 && norm.includes('#EXT-X-STREAM-INF')) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line.startsWith('#EXT-X-STREAM-INF')) continue;
+      const res2 = attr(line, 'RESOLUTION');
+      const bw   = attr(line, 'BANDWIDTH');
+      const name = res2 ? `Stream ${res2}` : `Stream ${bw ? Math.round(parseInt(bw) / 1000) + 'kbps' : i + 1}`;
+      let streamUrl = '';
+      for (let j = i + 1; j < lines.length && j < i + 3; j++) {
+        const nl = lines[j].trim();
+        if (nl && !nl.startsWith('#')) { streamUrl = nl; break; }
+      }
+      if (!streamUrl) continue;
+      addChannel(`stream-${i}`, name, streamUrl, '', 'Streams');
+    }
+  }
+
+  // ── Format 3: KODIPROP / #EXTVLCOPT extended format ──────────────────────
+  if (channels.length === 0 && (norm.includes('#KODIPROP') || norm.includes('#EXTVLCOPT'))) {
+    let currentName = '';
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith('#EXTINF')) {
+        currentName = line.slice(line.lastIndexOf(',') + 1).trim();
+      } else if (!line.startsWith('#') && line.startsWith('http')) {
+        addChannel(currentName || `ch${i}`, currentName || `Canal ${i}`, line, '', 'IPTV');
+        currentName = '';
+      }
+    }
+  }
+
+  // ── Format 4: Plain URL list (one URL per line, no metadata) ─────────────
+  if (channels.length === 0) {
+    let idx = 0;
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      try { new URL(trimmed.startsWith('http') || trimmed.startsWith('rtmp') ? trimmed : 'http://' + trimmed); } catch { continue; }
+      if (trimmed.startsWith('http') || trimmed.startsWith('rtmp')) {
+        const name = decodeURIComponent(trimmed.split('/').pop()?.replace(/[?#].*/, '') || `Canal ${idx + 1}`);
+        addChannel(`url-${idx}`, name, trimmed, '', 'IPTV');
+        idx++;
+      }
+    }
+  }
+
+  if (channels.length === 0) {
+    return res.json({ channels: [], count: 0, error: 'No se encontraron canales en la lista. El formato puede no ser compatible o la lista está vacía.' });
+  }
+
+  res.json({ channels, count: channels.length });
 });
 
 // ── Channel page proxy (ad-strip + volume control injection) ─────────────────

@@ -1055,23 +1055,35 @@ function renderIptvList() {
   `).join('');
 }
 
+function showIptvError(msg) {
+  const el = document.getElementById('iptv-error-box');
+  if (!el) { showToast('⚠️ ' + msg, 5000); return; }
+  el.textContent = '⚠️ ' + msg;
+  el.style.display = 'block';
+}
+function clearIptvError() {
+  const el = document.getElementById('iptv-error-box');
+  if (el) el.style.display = 'none';
+}
+
 async function addIptvPlaylist() {
   const urlEl = document.getElementById('iptv-url-input');
   const nameEl = document.getElementById('iptv-name-input');
   const url = urlEl.value.trim();
   const name = nameEl.value.trim() || 'Lista IPTV';
-  if (!url) { showToast('⚠️ Ingresa la URL de la lista', 2000); return; }
+  clearIptvError();
+  if (!url) { showIptvError('Ingresa la URL de la lista M3U'); return; }
   const btn = document.getElementById('iptv-add-btn');
   btn.disabled = true; btn.textContent = 'Cargando…';
   try {
     const r = await fetch('/api/iptv-parse?url=' + encodeURIComponent(url),
-      { signal: AbortSignal.timeout(35000) });
+      { signal: AbortSignal.timeout(40000) });
     let data;
-    try { data = await r.json(); } catch { data = { error: 'Respuesta inválida del servidor' }; }
+    try { data = await r.json(); } catch { data = { error: 'El servidor devolvió una respuesta inesperada' }; }
     if (data.error && (!data.channels || data.channels.length === 0)) {
-      showToast('⚠️ ' + data.error, 5000);
+      showIptvError(data.error);
     } else if (!data.channels || data.channels.length === 0) {
-      showToast('⚠️ La lista está vacía o no tiene canales válidos', 3500);
+      showIptvError('No se encontraron canales en la lista. Verifica que la URL sea correcta.');
     } else {
       const playlist = { id: Date.now().toString(), name, url, channels: data.channels, loadedAt: new Date().toISOString() };
       iptvPlaylists.push(playlist);
@@ -1082,8 +1094,10 @@ async function addIptvPlaylist() {
       showToast('✅ ' + data.count + ' canales cargados', 3000);
     }
   } catch (err) {
-    const msg = err?.name === 'TimeoutError' ? 'La lista tardó demasiado. Intenta con otra URL.' : 'No se pudo conectar. Verifica la URL.';
-    showToast('⚠️ ' + msg, 4000);
+    const msg = err?.name === 'TimeoutError' || err?.name === 'AbortError'
+      ? 'La lista tardó demasiado en responder. Intenta con otra URL.'
+      : 'No se pudo conectar con la URL. Verifica que sea accesible.';
+    showIptvError(msg);
   } finally { btn.disabled = false; btn.textContent = 'Agregar'; }
 }
 
@@ -1127,6 +1141,7 @@ function closeIptvForm() {
   document.getElementById('iptv-add-trigger').style.display = 'flex';
   document.getElementById('iptv-url-input').value = '';
   document.getElementById('iptv-name-input').value = '';
+  clearIptvError();
 }
 
 // ── Channel definitions ──────────────────────────────────────────────────────
@@ -1919,6 +1934,7 @@ document.addEventListener('DOMContentLoaded', init);
         <div class="iptv-add-form" id="iptv-add-form">
           <input class="iptv-input" type="url" id="iptv-url-input" placeholder="https://mi-lista.m3u8" autocomplete="off"/>
           <input class="iptv-input" type="text" id="iptv-name-input" placeholder="Nombre de la lista (opcional)" autocomplete="off"/>
+          <div class="iptv-error-box" id="iptv-error-box" style="display:none;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px 12px;font-size:12px;color:#fca5a5;line-height:1.5;margin-bottom:8px;"></div>
           <div class="iptv-form-btns">
             <button class="iptv-cancel-btn" onclick="closeIptvForm()">Cancelar</button>
             <button class="iptv-submit-btn" id="iptv-add-btn" onclick="addIptvPlaylist()">Agregar</button>
