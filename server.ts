@@ -485,6 +485,65 @@ app.get('/api/iptv-proxy', async (req: Request, res: Response) => {
   }
 });
 
+// ── Channel page proxy (ad-strip + volume control injection) ─────────────────
+app.get('/api/ch-proxy', async (req: Request, res: Response) => {
+  const rawUrl = req.query.url as string;
+  if (!rawUrl) return res.status(400).send('missing url');
+  let parsed: URL;
+  try { parsed = new URL(rawUrl); } catch { return res.status(400).send('invalid url'); }
+  if (!['http:', 'https:'].includes(parsed.protocol)) return res.status(400).send('invalid protocol');
+  try {
+    const resp = await fetch(rawUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+        'Referer': parsed.origin + '/',
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+    const html = await resp.text();
+    const $ = cheerio.load(html);
+
+    // Strip ad scripts
+    const adPatterns = ['googlesyndication','doubleclick','adsbygoogle','googletagmanager',
+      'amazon-adsystem','pagead','adsense','moatads','outbrain','taboola','revcontent',
+      'mgid','yandex','scorecard','comscore','vidazoo','adnxs','criteo','zedo','pubmatic','openx'];
+    $('script').each((_: any, el: any) => {
+      const src = $(el).attr('src') || '';
+      const cnt = $(el).html() || '';
+      if (adPatterns.some(p => src.includes(p) || cnt.includes(p))) $(el).remove();
+    });
+    $('ins.adsbygoogle').remove();
+    $('iframe[src*="googlesyndication"],iframe[src*="doubleclick"]').remove();
+    $('[id^="google_ads"],[class*="adsbygoogle"],[id*="ad-container"],[class*="ad-banner"]').remove();
+
+    // Fix relative URLs
+    $('base').remove();
+    $('head').prepend(`<base href="${parsed.origin}/">`);
+
+    // Inject postMessage volume listener + MutationObserver to catch dynamically added videos
+    $('body').append(`<script>
+(function(){
+  var _v=1;
+  function apply(){
+    document.querySelectorAll('video').forEach(function(v){v.volume=_v;v.muted=_v===0;});
+    document.querySelectorAll('iframe').forEach(function(f){try{f.contentWindow.postMessage({type:'SET_VOLUME',volume:_v},'*');}catch(e){}});
+  }
+  window.addEventListener('message',function(e){if(e.data&&e.data.type==='SET_VOLUME'){_v=e.data.volume;apply();}});
+  new MutationObserver(apply).observe(document.documentElement,{childList:true,subtree:true});
+  setInterval(apply,1200);
+})();
+</script>`);
+
+    res.setHeader('Content-Type','text/html; charset=utf-8');
+    res.setHeader('Cache-Control','no-cache, no-store');
+    res.send($.html());
+  } catch (err: any) {
+    res.status(502).send(`<html><body style="background:#000;color:#aaa;font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;text-align:center"><p>Error al cargar canal<br><small>${err.message}</small></p></body></html>`);
+  }
+});
+
 // ── Futbol Libres scraper ─────────────────────────────────────────────────────
 const BASE_URL = 'https://futbol-libres.su';
 
