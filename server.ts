@@ -485,6 +485,46 @@ app.get('/api/iptv-proxy', async (req: Request, res: Response) => {
   }
 });
 
+// ── Channel stream extractor (ad-free: find m3u8 inside channel page) ────────
+app.get('/api/ch-stream', async (req: Request, res: Response) => {
+  const rawUrl = req.query.url as string;
+  if (!rawUrl) return res.json({ stream: null, type: null });
+  let parsed: URL;
+  try { parsed = new URL(rawUrl); } catch { return res.json({ stream: null, type: null }); }
+  try {
+    const r = await fetch(rawUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,*/*',
+        'Accept-Language': 'es-ES,es;q=0.9',
+        'Referer': parsed.origin + '/',
+      },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!r.ok) return res.json({ stream: null, type: null });
+    const html = await r.text();
+
+    // 1) Direct m3u8 → best: play with HLS.js, zero ads
+    const m3u8 = html.match(/["'`](https?:\/\/[^"'`\s<>]+\.m3u8[^"'`\s<>]*)/)?.[1] ?? null;
+    if (m3u8) return res.json({ stream: m3u8, type: 'hls' });
+
+    // 2) Inner iframe on a different domain (skip ads wrapper, load sub-player)
+    const $ = cheerio.load(html);
+    let playerSrc: string | null = null;
+    $('iframe[src]').each((_: any, el: any) => {
+      const src = ($(el).attr('src') ?? '').trim();
+      if (src.startsWith('http') && !src.includes(parsed.hostname) && !playerSrc) {
+        playerSrc = src;
+      }
+    });
+    if (playerSrc) return res.json({ stream: playerSrc, type: 'iframe' });
+
+    res.json({ stream: null, type: null });
+  } catch {
+    res.json({ stream: null, type: null });
+  }
+});
+
 // ── Channel page proxy (ad-strip + volume control injection) ─────────────────
 app.get('/api/ch-proxy', async (req: Request, res: Response) => {
   const rawUrl = req.query.url as string;

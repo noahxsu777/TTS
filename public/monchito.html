@@ -10,6 +10,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.15/dist/hls.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 :root{
@@ -551,6 +552,14 @@ html,body{
   </div>
 
   <div class="player-wrap">
+    <!-- Direct HLS player (ad-free when stream URL found) -->
+    <video
+      id="player-video"
+      style="position:absolute;inset:0;width:100%;height:100%;background:#000;display:none;"
+      autoplay
+      playsinline
+    ></video>
+    <!-- Iframe fallback (used when direct stream not found) -->
     <iframe
       class="player-iframe"
       id="player-iframe"
@@ -904,60 +913,98 @@ function handleCardClick(id) {
   openChannel(id);
 }
 
+// ── HLS instance ──────────────────────────────────────────────────────────────
+let hlsInstance = null;
+let playerMode = 'iframe'; // 'hls' | 'iframe'
+
+function stopCurrentPlayer() {
+  // Stop HLS
+  if (hlsInstance) { try { hlsInstance.destroy(); } catch {} hlsInstance = null; }
+  const video = document.getElementById('player-video');
+  video.src = ''; video.style.display = 'none';
+  // Stop iframe
+  const iframe = document.getElementById('player-iframe');
+  iframe.src = ''; iframe.style.display = '';
+}
+
+function playHLS(url) {
+  playerMode = 'hls';
+  const video = document.getElementById('player-video');
+  document.getElementById('player-iframe').style.display = 'none';
+  video.style.display = 'block';
+  video.volume = currentVolume;
+
+  if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+    hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true });
+    hlsInstance.loadSource(url);
+    hlsInstance.attachMedia(video);
+    hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.src = url;
+    video.play().catch(() => {});
+  }
+}
+
+function playIframe(url) {
+  playerMode = 'iframe';
+  const iframe = document.getElementById('player-iframe');
+  document.getElementById('player-video').style.display = 'none';
+  iframe.style.display = '';
+  iframe.src = url;
+}
+
 // ── Open player ───────────────────────────────────────────────────────────────
-function openChannel(id) {
+async function openChannel(id) {
   const ch = CHANNELS.find(c => c.id === id);
   if (!ch || !ch.url) return;
 
   currentChId = id;
-
   document.getElementById('player-ch-name').textContent = ch.name;
   document.getElementById('loading-ch-name').textContent = `Cargando ${ch.name}…`;
 
-  // Screen transition first so the iframe is visible while it loads
+  // Transition + fullscreen immediately — don't wait for stream
   document.getElementById('home-screen').classList.add('slide-out');
   document.getElementById('player-screen').classList.remove('slide-in-hidden');
-
-  // Show loading overlay
   const loadingEl = document.getElementById('player-loading');
   loadingEl.classList.remove('gone');
-
-  const iframe = document.getElementById('player-iframe');
-  iframe.src = '';
-
-  // Dismiss loading on iframe load or 800ms fallback
-  const dismissLoading = () => {
-    clearTimeout(window._loadTimer);
-    loadingEl.classList.add('gone');
-    // Apply stored volume once loaded
-    setTimeout(() => {
-      iframe.contentWindow?.postMessage({ type: 'SET_VOLUME', volume: currentVolume }, '*');
-    }, 300);
-  };
-  iframe.onload = dismissLoading;
-  clearTimeout(window._loadTimer);
-  window._loadTimer = setTimeout(dismissLoading, 800);
-
-  iframe.src = ch.url;
-
-  // Auto fullscreen + landscape when channel opens
+  stopCurrentPlayer();
   enterFullscreenLandscape();
-
   renderBottomChips();
   showBar(true);
+
+  // Try to extract direct stream (ad-free) with 5s timeout
+  let stream = null, type = null;
+  try {
+    const r = await fetch(`/api/ch-stream?url=${encodeURIComponent(ch.url)}`,
+      { signal: AbortSignal.timeout(5000) });
+    const data = await r.json();
+    stream = data.stream; type = data.type;
+  } catch {}
+
+  clearTimeout(window._loadTimer);
+  window._loadTimer = setTimeout(() => loadingEl.classList.add('gone'), 1500);
+
+  if (type === 'hls' && stream) {
+    // Best case: direct m3u8 → no ads, native volume control
+    showToast('✅ Stream directo — sin publicidad', 2500);
+    playHLS(stream);
+  } else if (type === 'iframe' && stream) {
+    // Inner player iframe (fewer ads than full page)
+    playIframe(stream);
+  } else {
+    // Fallback: original URL
+    playIframe(ch.url);
+  }
 }
 
 // ── Close player ──────────────────────────────────────────────────────────────
 function closePlayer(e) {
   if (e) e.stopPropagation();
-
   exitFullscreenLandscape();
-
-  document.getElementById('player-iframe').src = '';
+  stopCurrentPlayer();
   document.getElementById('player-screen').classList.add('slide-in-hidden');
   document.getElementById('home-screen').classList.remove('slide-out');
   currentChId = null;
-
   if (castStream) {
     castStream.getTracks().forEach(t => t.stop());
     castStream = null;
@@ -1035,10 +1082,16 @@ function updateVolume(val) {
       paths.innerHTML = `<polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/><path d="M19.07 4.93a10 10 0 010 14.14"/>`;
     }
   }
-  // Send volume command to proxied iframe
-  try {
-    document.getElementById('player-iframe').contentWindow?.postMessage({ type: 'SET_VOLUME', volume: currentVolume }, '*');
-  } catch {}
+  // Apply volume: direct for HLS video, postMessage for iframe
+  if (playerMode === 'hls') {
+    const vid = document.getElementById('player-video');
+    vid.volume = currentVolume;
+    vid.muted = currentVolume === 0;
+  } else {
+    try {
+      document.getElementById('player-iframe').contentWindow?.postMessage({ type: 'SET_VOLUME', volume: currentVolume }, '*');
+    } catch {}
+  }
   clearTimeout(barTimer); // Don't auto-hide while adjusting
 }
 
