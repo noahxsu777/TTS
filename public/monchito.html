@@ -1064,10 +1064,14 @@ async function addIptvPlaylist() {
   const btn = document.getElementById('iptv-add-btn');
   btn.disabled = true; btn.textContent = 'Cargando…';
   try {
-    const r = await fetch('/api/iptv-parse?url=' + encodeURIComponent(url));
-    const data = await r.json();
-    if (!data.channels || data.channels.length === 0) {
-      showToast('⚠️ ' + (data.error || 'No se encontraron canales'), 3000);
+    const r = await fetch('/api/iptv-parse?url=' + encodeURIComponent(url),
+      { signal: AbortSignal.timeout(35000) });
+    let data;
+    try { data = await r.json(); } catch { data = { error: 'Respuesta inválida del servidor' }; }
+    if (data.error && (!data.channels || data.channels.length === 0)) {
+      showToast('⚠️ ' + data.error, 5000);
+    } else if (!data.channels || data.channels.length === 0) {
+      showToast('⚠️ La lista está vacía o no tiene canales válidos', 3500);
     } else {
       const playlist = { id: Date.now().toString(), name, url, channels: data.channels, loadedAt: new Date().toISOString() };
       iptvPlaylists.push(playlist);
@@ -1077,8 +1081,10 @@ async function addIptvPlaylist() {
       closeIptvForm();
       showToast('✅ ' + data.count + ' canales cargados', 3000);
     }
-  } catch { showToast('⚠️ Error al cargar la lista', 2500); }
-  finally { btn.disabled = false; btn.textContent = 'Agregar'; }
+  } catch (err) {
+    const msg = err?.name === 'TimeoutError' ? 'La lista tardó demasiado. Intenta con otra URL.' : 'No se pudo conectar. Verifica la URL.';
+    showToast('⚠️ ' + msg, 4000);
+  } finally { btn.disabled = false; btn.textContent = 'Agregar'; }
 }
 
 async function refreshIptvPlaylist(id) {
@@ -1086,17 +1092,21 @@ async function refreshIptvPlaylist(id) {
   if (!playlist) return;
   showToast('🔄 Actualizando…', 2000);
   try {
-    const r = await fetch('/api/iptv-parse?url=' + encodeURIComponent(playlist.url));
-    const data = await r.json();
-    if (data.channels) {
+    const r = await fetch('/api/iptv-parse?url=' + encodeURIComponent(playlist.url),
+      { signal: AbortSignal.timeout(35000) });
+    let data;
+    try { data = await r.json(); } catch { data = {}; }
+    if (data.channels && data.channels.length > 0) {
       playlist.channels = data.channels;
       playlist.loadedAt = new Date().toISOString();
       saveIptvPlaylists();
       renderGrid();
       renderIptvList();
       showToast('✅ ' + data.count + ' canales actualizados', 2500);
+    } else {
+      showToast('⚠️ ' + (data.error || 'No se encontraron canales'), 4000);
     }
-  } catch { showToast('⚠️ Error al actualizar', 2000); }
+  } catch { showToast('⚠️ Error de red al actualizar', 2000); }
 }
 
 function removeIptvPlaylist(id) {
