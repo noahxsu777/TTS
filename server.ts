@@ -485,43 +485,124 @@ app.get('/api/iptv-proxy', async (req: Request, res: Response) => {
   }
 });
 
-// ── Channel stream extractor (ad-free: find m3u8 inside channel page) ────────
+const FETCH_HEADERS = {
+  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+  'Accept': 'text/html,application/xhtml+xml,*/*',
+  'Accept-Language': 'es-ES,es;q=0.9',
+};
+
+function extractM3u8(html: string): string | null {
+  // Common patterns: quoted URL, jwplayer/videojs source, HLS config
+  return (
+    html.match(/["'`](https?:\/\/[^"'`\s<>]+\.m3u8[^"'`\s<>]*)/)?.[1] ??
+    html.match(/file\s*:\s*["'](https?:\/\/[^"']+\.m3u8[^"']*)/)?.[1] ??
+    html.match(/source\s*:\s*["'](https?:\/\/[^"']+\.m3u8[^"']*)/)?.[1] ??
+    html.match(/src\s*:\s*["'](https?:\/\/[^"']+\.m3u8[^"']*)/)?.[1] ??
+    null
+  );
+}
+
+// ── Channel stream extractor (ad-free: find m3u8 — 2-level deep) ─────────────
 app.get('/api/ch-stream', async (req: Request, res: Response) => {
   const rawUrl = req.query.url as string;
   if (!rawUrl) return res.json({ stream: null, type: null });
   let parsed: URL;
   try { parsed = new URL(rawUrl); } catch { return res.json({ stream: null, type: null }); }
+
+  async function fetchHtml(url: string, referer: string): Promise<string | null> {
+    try {
+      const r = await fetch(url, {
+        headers: { ...FETCH_HEADERS, 'Referer': referer },
+        signal: AbortSignal.timeout(8000),
+      });
+      return r.ok ? r.text() : null;
+    } catch { return null; }
+  }
+
   try {
-    const r = await fetch(rawUrl, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,*/*',
-        'Accept-Language': 'es-ES,es;q=0.9',
-        'Referer': parsed.origin + '/',
-      },
-      signal: AbortSignal.timeout(10000),
-    });
-    if (!r.ok) return res.json({ stream: null, type: null });
-    const html = await r.text();
+    // Level 1: fetch the channel page
+    const html1 = await fetchHtml(rawUrl, parsed.origin + '/');
+    if (!html1) return res.json({ stream: null, type: null });
 
-    // 1) Direct m3u8 → best: play with HLS.js, zero ads
-    const m3u8 = html.match(/["'`](https?:\/\/[^"'`\s<>]+\.m3u8[^"'`\s<>]*)/)?.[1] ?? null;
-    if (m3u8) return res.json({ stream: m3u8, type: 'hls' });
+    const m3u8L1 = extractM3u8(html1);
+    if (m3u8L1) return res.json({ stream: m3u8L1, type: 'hls' });
 
-    // 2) Inner iframe on a different domain (skip ads wrapper, load sub-player)
-    const $ = cheerio.load(html);
-    let playerSrc: string | null = null;
-    $('iframe[src]').each((_: any, el: any) => {
-      const src = ($(el).attr('src') ?? '').trim();
-      if (src.startsWith('http') && !src.includes(parsed.hostname) && !playerSrc) {
-        playerSrc = src;
-      }
+    // Level 2: find inner iframes, fetch each one and look for m3u8
+    const $1 = cheerio.load(html1);
+    const iframes: string[] = [];
+    $1('iframe[src]').each((_: any, el: any) => {
+      const src = ($1(el).attr('src') ?? '').trim();
+      if (src.startsWith('http') && !src.includes(parsed.hostname)) iframes.push(src);
     });
-    if (playerSrc) return res.json({ stream: playerSrc, type: 'iframe' });
+    // Also look for JS-embedded iframe src patterns
+    const jsSrc = html1.match(/["'](https?:\/\/[^"'\s<>]*\/(?:embed|player|live|stream)[^"'\s<>]*)/g);
+    if (jsSrc) iframes.push(...jsSrc.map(s => s.replace(/^["']|["']$/g, '')));
+
+    for (const iframeSrc of iframes.slice(0, 3)) {
+      let iframeOrigin: string;
+      try { iframeOrigin = new URL(iframeSrc).origin; } catch { continue; }
+      const html2 = await fetchHtml(iframeSrc, iframeOrigin + '/');
+      if (!html2) continue;
+      const m3u8L2 = extractM3u8(html2);
+      if (m3u8L2) return res.json({ stream: m3u8L2, type: 'hls' });
+    }
+
+    // Fallback: return first cross-domain iframe src
+    if (iframes.length > 0) return res.json({ stream: iframes[0], type: 'iframe' });
 
     res.json({ stream: null, type: null });
   } catch {
     res.json({ stream: null, type: null });
+  }
+});
+
+// ── HLS stream proxy (hides source URL, adds CORS + Referer headers) ──────────
+app.get('/api/hls-proxy', async (req: Request, res: Response) => {
+  const url = req.query.url as string;
+  if (!url) return res.status(400).send('missing url');
+  let parsed: URL;
+  try { parsed = new URL(url); } catch { return res.status(400).send('invalid url'); }
+  if (!['http:', 'https:'].includes(parsed.protocol)) return res.status(400).send('invalid protocol');
+
+  const lpath = parsed.pathname.toLowerCase();
+  const isPlaylist = lpath.includes('.m3u8') || (req.query.url as string).includes('.m3u8');
+
+  try {
+    const r = await fetch(url, {
+      headers: {
+        'User-Agent': FETCH_HEADERS['User-Agent'],
+        'Referer': parsed.origin + '/',
+        'Origin': parsed.origin,
+      },
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!r.ok) return res.status(r.status).send('upstream error');
+
+    const ct = r.headers.get('content-type') || '';
+    const isM3u8 = isPlaylist || ct.includes('mpegurl') || ct.includes('x-mpegURL');
+
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET');
+
+    if (isM3u8) {
+      const text = await r.text();
+      const baseUrl = url.substring(0, url.lastIndexOf('/') + 1);
+      const rewritten = text.split('\n').map(line => {
+        const trimmed = line.trim();
+        if (trimmed.startsWith('#') || trimmed === '') return line;
+        let abs = trimmed.startsWith('http') ? trimmed : baseUrl + trimmed;
+        return `/api/hls-proxy?url=${encodeURIComponent(abs)}`;
+      }).join('\n');
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+      return res.send(rewritten);
+    }
+
+    // Binary segment — pipe through
+    res.setHeader('Content-Type', ct || 'video/MP2T');
+    const buf = await r.arrayBuffer();
+    res.send(Buffer.from(buf));
+  } catch (err: any) {
+    res.status(502).send(err?.message || 'proxy error');
   }
 });
 

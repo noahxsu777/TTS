@@ -475,29 +475,6 @@ html,body{
 }
 .cast-lbl{font-size:12px;font-weight:700;color:var(--text);}
 .cast-desc{font-size:10px;color:var(--text3);line-height:1.3;}
-/* URL copy row */
-.cast-url-box{
-  background:var(--surface2);border:1px solid var(--border);
-  border-radius:12px;padding:10px 14px;
-  display:none;
-}
-.cast-url-box.show{display:flex;align-items:center;gap:8px;}
-.cast-url-text{
-  flex:1;font-size:10px;color:var(--text3);font-family:monospace;
-  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
-}
-.cast-copy-btn{
-  flex-shrink:0;padding:6px 12px;border-radius:8px;
-  background:var(--purple);color:white;
-  font-size:11px;font-weight:700;cursor:pointer;border:none;
-  transition:opacity 0.2s;
-}
-.cast-copy-btn:hover{opacity:0.8;}
-.cast-no-url{
-  font-size:11px;color:var(--text4);text-align:center;
-  padding:8px;display:none;
-}
-.cast-no-url.show{display:block;}
 
 /* ── RESPONSIVE ──────────────────────────────────────────────────────── */
 @media(max-width:640px){
@@ -1051,20 +1028,23 @@ function stopCurrentPlayer() {
 }
 
 function playHLS(url) {
-  currentHLSUrl = url;
+  currentHLSUrl = url; // original URL kept for cast
   playerMode = 'hls';
   const video = document.getElementById('player-video');
   document.getElementById('player-iframe').style.display = 'none';
   video.style.display = 'block';
   video.volume = currentVolume;
 
+  // Route through server proxy: hides source URL, adds correct headers
+  const proxyUrl = '/api/hls-proxy?url=' + encodeURIComponent(url);
+
   if (typeof Hls !== 'undefined' && Hls.isSupported()) {
     hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true });
-    hlsInstance.loadSource(url);
+    hlsInstance.loadSource(proxyUrl);
     hlsInstance.attachMedia(video);
     hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
   } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-    video.src = url;
+    video.src = proxyUrl;
     video.play().catch(() => {});
   }
 }
@@ -1302,30 +1282,12 @@ function toggleCast(e) {
 
 function openCastModal() {
   checkAirPlay();
-  // Show or hide the URL box based on whether we have a direct stream
-  const urlBox = document.getElementById('cast-url-box');
-  const noUrl  = document.getElementById('cast-no-url');
-  const urlText = document.getElementById('cast-url-text');
-  const sub = document.getElementById('cast-modal-subtitle');
-
   const ch = CHANNELS.find(c => c.id === currentChId);
-  const streamUrl = currentHLSUrl || (ch?.url.includes('.m3u8') ? ch.url : null);
-
-  if (streamUrl) {
-    urlText.textContent = streamUrl;
-    urlBox.classList.add('show');
-    noUrl.classList.remove('show');
-    sub.textContent = 'Stream directo disponible ✅';
-    document.getElementById('cast-opt-url').classList.remove('off');
-  } else {
-    urlBox.classList.remove('show');
-    noUrl.classList.add('show');
-    sub.textContent = 'Canal por iframe — URL no disponible';
-    document.getElementById('cast-opt-url').classList.add('off');
-  }
-
+  const hasStream = !!(currentHLSUrl || ch?.url.includes('.m3u8'));
+  const sub = document.getElementById('cast-modal-subtitle');
+  sub.textContent = hasStream ? 'Stream directo disponible ✅' : 'Elige tu método de cast';
   document.getElementById('cast-overlay').classList.add('show');
-  showBar(true); // keep controls visible
+  showBar(true);
 }
 
 function closeCastModal(e) {
@@ -1342,7 +1304,8 @@ function doCastChromecast() {
 
   const ctx = cast.framework.CastContext.getInstance();
   const doLoad = (session) => {
-    const mediaInfo = new chrome.cast.media.MediaInfo(url, 'application/x-mpegURL');
+    const proxyUrl = window.location.origin + '/api/hls-proxy?url=' + encodeURIComponent(url);
+    const mediaInfo = new chrome.cast.media.MediaInfo(proxyUrl, 'application/x-mpegURL');
     mediaInfo.metadata = new chrome.cast.media.GenericMediaMetadata();
     mediaInfo.metadata.title = ch?.name || 'Monchito Sport TV';
     const req = new chrome.cast.media.LoadRequest(mediaInfo);
@@ -1422,22 +1385,6 @@ async function doCastScreen() {
   } catch (err) {
     if (err.name !== 'NotAllowedError') showToast('⚠️ No se pudo iniciar el cast', 2500);
   }
-}
-
-// ── Cast: Copy URL ─────────────────────────────────────────────────────────────
-function doCastCopyUrl() {
-  const urlText = document.getElementById('cast-url-text')?.textContent;
-  if (!urlText) { showToast('⚠️ No hay URL disponible para este canal', 2500); return; }
-  copyStreamUrl();
-}
-
-function copyStreamUrl() {
-  const url = document.getElementById('cast-url-text')?.textContent;
-  if (!url) return;
-  navigator.clipboard.writeText(url).then(() => {
-    showToast('✅ URL copiada — pégala en VLC, Kodi o DLNA', 3000);
-    closeCastModal(null);
-  }).catch(() => showToast('⚠️ No se pudo copiar', 2000));
 }
 
 // ── Toast ─────────────────────────────────────────────────────────────────────
@@ -1540,27 +1487,6 @@ document.addEventListener('DOMContentLoaded', init);
         <div class="cast-desc">Cualquier pantalla / TV</div>
       </div>
 
-      <!-- Copy URL (DLNA / Roku / VLC) -->
-      <div class="cast-card" id="cast-opt-url" onclick="doCastCopyUrl()">
-        <div class="cast-ico" style="background:rgba(16,185,129,0.15);">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#10b981" stroke-width="2">
-            <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/>
-            <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
-          </svg>
-        </div>
-        <div class="cast-lbl">Copiar URL</div>
-        <div class="cast-desc">VLC · DLNA · Roku · Kodi</div>
-      </div>
-    </div>
-
-    <!-- URL display row -->
-    <div class="cast-url-box" id="cast-url-box">
-      <div class="cast-url-text" id="cast-url-text"></div>
-      <button class="cast-copy-btn" onclick="copyStreamUrl()">Copiar</button>
-    </div>
-    <div class="cast-no-url" id="cast-no-url">
-      ⚠️ URL disponible solo en canales con stream directo (m3u8).<br>
-      Para otros canales usa <strong>Compartir pantalla</strong>.
     </div>
   </div>
 </div>
