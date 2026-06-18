@@ -839,37 +839,43 @@ function openChannel(id) {
 
   currentChId = id;
 
-  // Update player UI
   document.getElementById('player-ch-name').textContent = ch.name;
   document.getElementById('loading-ch-name').textContent = `Cargando ${ch.name}…`;
 
-  // Set iframe
-  const iframe = document.getElementById('player-iframe');
-  iframe.src = '';
-  iframe.src = ch.url;
+  // Screen transition first so the iframe is visible while it loads
+  document.getElementById('home-screen').classList.add('slide-out');
+  document.getElementById('player-screen').classList.remove('slide-in-hidden');
 
   // Show loading overlay
   const loadingEl = document.getElementById('player-loading');
   loadingEl.classList.remove('gone');
 
-  // Hide loading after a few seconds (iframe can't reliably signal load)
+  const iframe = document.getElementById('player-iframe');
+  iframe.src = '';
+
+  // Dismiss loading as soon as iframe signals load, 1.5s fallback
+  const dismissLoading = () => {
+    clearTimeout(window._loadTimer);
+    loadingEl.classList.add('gone');
+  };
+  iframe.onload = dismissLoading;
   clearTimeout(window._loadTimer);
-  window._loadTimer = setTimeout(() => loadingEl.classList.add('gone'), 4000);
+  window._loadTimer = setTimeout(dismissLoading, 1500);
 
-  // Screen transition
-  document.getElementById('home-screen').classList.add('slide-out');
-  document.getElementById('player-screen').classList.remove('slide-in-hidden');
+  iframe.src = ch.url;
 
-  // Render quick-switch chips
+  // Auto fullscreen + landscape when channel opens
+  enterFullscreenLandscape();
+
   renderBottomChips();
-
-  // Show controls
   showBar(true);
 }
 
 // ── Close player ──────────────────────────────────────────────────────────────
 function closePlayer(e) {
   if (e) e.stopPropagation();
+
+  exitFullscreenLandscape();
 
   document.getElementById('player-iframe').src = '';
   document.getElementById('player-screen').classList.add('slide-in-hidden');
@@ -924,22 +930,48 @@ function toggleBar() {
   else showBar();
 }
 
-// ── Fullscreen ────────────────────────────────────────────────────────────────
+// ── Fullscreen + landscape ────────────────────────────────────────────────────
+function enterFullscreenLandscape() {
+  const el = document.getElementById('player-screen');
+  const enter = el.requestFullscreen?.()
+    ?? el.webkitRequestFullscreen?.()
+    ?? Promise.resolve();
+  Promise.resolve(enter)
+    .then(() => screen.orientation?.lock?.('landscape').catch(() => {}))
+    .catch(() => {
+      // requestFullscreen blocked (e.g. no gesture on first open) — try orientation only
+      screen.orientation?.lock?.('landscape').catch(() => {});
+    });
+}
+
+function exitFullscreenLandscape() {
+  if (document.fullscreenElement || document.webkitFullscreenElement) {
+    (document.exitFullscreen?.() ?? document.webkitExitFullscreen?.())
+  }
+  screen.orientation?.unlock?.();
+}
+
 function toggleFullscreen(e) {
   if (e) e.stopPropagation();
-  const el = document.getElementById('player-screen');
-  if (!document.fullscreenElement) {
-    el.requestFullscreen?.().catch(() => {});
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+    enterFullscreenLandscape();
     document.getElementById('fullscreen-btn').classList.add('btn-active');
   } else {
-    document.exitFullscreen?.();
+    exitFullscreenLandscape();
     document.getElementById('fullscreen-btn').classList.remove('btn-active');
   }
 }
 
 document.addEventListener('fullscreenchange', () => {
-  if (!document.fullscreenElement) {
+  if (!document.fullscreenElement && !document.webkitFullscreenElement) {
     document.getElementById('fullscreen-btn').classList.remove('btn-active');
+    screen.orientation?.unlock?.();
+  }
+});
+document.addEventListener('webkitfullscreenchange', () => {
+  if (!document.webkitFullscreenElement) {
+    document.getElementById('fullscreen-btn').classList.remove('btn-active');
+    screen.orientation?.unlock?.();
   }
 });
 
