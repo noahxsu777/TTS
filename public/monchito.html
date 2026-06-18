@@ -1374,7 +1374,9 @@ setInterval(updateClock, 10000);
 
 // ── Filtering ─────────────────────────────────────────────────────────────────
 function getFiltered() {
-  return CHANNELS.filter(ch => {
+  const all = [...CHANNELS, ...getIptvChannels()];
+  return all.filter(ch => {
+    if (!appSettings.showUnavailable && ch.comingSoon) return false;
     if (activeCat !== 'todos' && ch.cat !== activeCat) return false;
     if (searchQ && !ch.name.toLowerCase().includes(searchQ)) return false;
     return true;
@@ -1846,7 +1848,7 @@ function navTo(section) {
 // ── Init ──────────────────────────────────────────────────────────────────────
 function init() {
   applyLang();
-  renderGrid();
+  applySettings();
 
   // Category buttons
   document.querySelectorAll('.cat-btn').forEach(btn => {
