@@ -938,7 +938,7 @@ function openChannel(id) {
   clearTimeout(window._loadTimer);
   window._loadTimer = setTimeout(dismissLoading, 800);
 
-  iframe.src = getChannelSrc(ch.url);
+  iframe.src = ch.url;
 
   // Auto fullscreen + landscape when channel opens
   enterFullscreenLandscape();
