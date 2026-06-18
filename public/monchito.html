@@ -1,0 +1,1044 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="theme-color" content="#07070f"/>
+<title>Monchito Sport TV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#07070f;
+  --bg2:#0d0d1a;
+  --surface:#12121f;
+  --surface2:#1a1a2e;
+  --surface3:#22223a;
+  --border:rgba(255,255,255,0.07);
+  --border2:rgba(255,255,255,0.12);
+  --purple:#8b5cf6;
+  --purple-dim:rgba(139,92,246,0.15);
+  --purple-glow:rgba(139,92,246,0.35);
+  --violet:#7c3aed;
+  --blue:#3b82f6;
+  --cyan:#06b6d4;
+  --green:#10b981;
+  --red:#ef4444;
+  --orange:#f59e0b;
+  --text:#f0f0ff;
+  --text2:rgba(240,240,255,0.65);
+  --text3:rgba(240,240,255,0.35);
+  --text4:rgba(240,240,255,0.18);
+  --radius-sm:10px;
+  --radius:14px;
+  --radius-lg:20px;
+  --radius-xl:24px;
+}
+html,body{
+  height:100%;background:var(--bg);color:var(--text);
+  font-family:'Inter',sans-serif;overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── BACKGROUND ──────────────────────────────────────────────────────── */
+.bg-canvas{
+  position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;
+}
+.bg-blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:0.12;}
+.bg-blob-1{width:600px;height:500px;background:radial-gradient(circle,#7c3aed,transparent);top:-100px;left:-100px;animation:drift 18s ease-in-out infinite alternate;}
+.bg-blob-2{width:500px;height:400px;background:radial-gradient(circle,#3b82f6,transparent);top:30%;right:-80px;animation:drift 22s ease-in-out infinite alternate-reverse;}
+.bg-blob-3{width:400px;height:350px;background:radial-gradient(circle,#10b981,transparent);bottom:-50px;left:40%;animation:drift 15s ease-in-out infinite alternate;}
+@keyframes drift{
+  0%{transform:translate(0,0) scale(1);}
+  100%{transform:translate(30px,20px) scale(1.05);}
+}
+.stars-canvas{position:absolute;inset:0;width:100%;height:100%;}
+
+/* ── SCREENS ─────────────────────────────────────────────────────────── */
+.screen{
+  position:fixed;inset:0;display:flex;flex-direction:column;
+  z-index:1;overflow:hidden;
+  transition:transform 0.38s cubic-bezier(.25,.46,.45,.94),opacity 0.38s;
+}
+.screen.slide-out{transform:translateX(-8%) scale(0.97);opacity:0;pointer-events:none;}
+.screen.slide-in-hidden{transform:translateX(100%);opacity:0;pointer-events:none;}
+#home-screen{background:transparent;}
+#player-screen{background:#000;}
+
+/* ── SCROLLBAR ───────────────────────────────────────────────────────── */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px;}
+
+/* ── HEADER ──────────────────────────────────────────────────────────── */
+.header{
+  flex-shrink:0;
+  padding:env(safe-area-inset-top, 0px) 0 0;
+  background:rgba(7,7,15,0.7);
+  backdrop-filter:blur(24px) saturate(1.5);
+  -webkit-backdrop-filter:blur(24px) saturate(1.5);
+  border-bottom:1px solid var(--border);
+  z-index:10;
+}
+.header-inner{padding:14px 20px 12px;}
+.header-top{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.logo{display:flex;align-items:center;gap:11px;flex:1;min-width:0;}
+.logo-mark{
+  width:42px;height:42px;border-radius:13px;flex-shrink:0;
+  background:linear-gradient(135deg,#7c3aed 0%,#4f46e5 50%,#3b82f6 100%);
+  display:flex;align-items:center;justify-content:center;
+  box-shadow:0 0 0 1px rgba(255,255,255,0.12),0 4px 20px rgba(124,58,237,0.5);
+  font-size:20px;
+}
+.logo-text{min-width:0;}
+.logo-title{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:15px;font-weight:800;letter-spacing:-0.3px;
+  background:linear-gradient(90deg,#fff 0%,#c4b5fd 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.logo-sub{font-size:10px;font-weight:500;color:var(--purple);letter-spacing:0.04em;margin-top:1px;}
+.header-badges{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.badge-live{
+  display:flex;align-items:center;gap:5px;
+  background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.25);
+  border-radius:20px;padding:5px 10px;
+}
+.dot-live{
+  width:6px;height:6px;border-radius:50%;background:#ef4444;flex-shrink:0;
+  box-shadow:0 0 8px rgba(239,68,68,0.8);
+  animation:pulse-dot 1.6s cubic-bezier(.4,0,.6,1) infinite;
+}
+@keyframes pulse-dot{
+  0%,100%{opacity:1;box-shadow:0 0 8px rgba(239,68,68,0.8);}
+  50%{opacity:0.5;box-shadow:0 0 4px rgba(239,68,68,0.3);}
+}
+.badge-live span{font-size:9px;font-weight:800;color:#ef4444;letter-spacing:0.1em;}
+.header-time{font-size:11px;font-weight:600;color:var(--text3);font-variant-numeric:tabular-nums;}
+
+/* ── SEARCH ──────────────────────────────────────────────────────────── */
+.search-wrap{position:relative;}
+.search-input{
+  width:100%;height:40px;
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius-sm);color:var(--text);
+  font-size:14px;font-family:'Inter',sans-serif;
+  padding:0 14px 0 40px;outline:none;
+  transition:border-color 0.2s,box-shadow 0.2s;
+}
+.search-input::placeholder{color:var(--text4);}
+.search-input:focus{border-color:var(--purple);box-shadow:0 0 0 3px var(--purple-dim);}
+.search-ico{
+  position:absolute;left:14px;top:50%;transform:translateY(-50%);
+  color:var(--text4);pointer-events:none;
+}
+
+/* ── CATEGORIES ──────────────────────────────────────────────────────── */
+.cats-wrap{
+  flex-shrink:0;
+  display:flex;align-items:center;gap:8px;
+  padding:10px 20px;overflow-x:auto;scrollbar-width:none;
+  background:rgba(7,7,15,0.5);
+  border-bottom:1px solid var(--border);
+}
+.cats-wrap::-webkit-scrollbar{display:none;}
+.cat-btn{
+  flex-shrink:0;display:flex;align-items:center;gap:6px;
+  padding:7px 14px;border-radius:20px;
+  font-size:12px;font-weight:600;white-space:nowrap;
+  background:transparent;border:1px solid var(--border);
+  color:var(--text3);cursor:pointer;transition:all 0.2s;
+}
+.cat-btn:hover{border-color:var(--border2);color:var(--text2);}
+.cat-btn.active{
+  background:linear-gradient(135deg,var(--violet),var(--purple));
+  border-color:transparent;color:#fff;
+  box-shadow:0 0 0 1px rgba(255,255,255,0.1),0 4px 16px var(--purple-glow);
+}
+.cat-btn .cat-emoji{font-size:13px;line-height:1;}
+
+/* ── SECTION HEADER ──────────────────────────────────────────────────── */
+.section-hdr{
+  padding:14px 20px 8px;
+  display:flex;align-items:center;gap-8px;
+}
+.section-hdr h2{
+  font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:0.12em;color:var(--text4);
+}
+.section-hdr .count{
+  margin-left:8px;font-size:10px;color:var(--purple);font-weight:600;
+}
+
+/* ── CHANNEL GRID ────────────────────────────────────────────────────── */
+.grid-wrap{
+  flex:1;overflow-y:auto;padding:0 16px 100px;
+}
+.channel-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(155px,1fr));
+  gap:12px;padding-top:4px;
+}
+
+/* ── CHANNEL CARD ────────────────────────────────────────────────────── */
+.ch-card{
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-lg);overflow:hidden;
+  cursor:pointer;user-select:none;
+  transition:transform 0.22s cubic-bezier(.34,1.56,.64,1),border-color 0.22s,box-shadow 0.22s;
+  -webkit-tap-highlight-color:transparent;
+}
+.ch-card:hover{
+  transform:translateY(-4px) scale(1.02);
+  border-color:var(--purple);
+  box-shadow:0 8px 32px rgba(139,92,246,0.22),0 0 0 1px rgba(139,92,246,0.15);
+}
+.ch-card:active{transform:scale(0.97);}
+.ch-card.soon{opacity:0.55;cursor:default;}
+.ch-card.soon:hover{transform:none;border-color:var(--border);box-shadow:none;}
+.ch-card.soon:active{transform:none;}
+
+.ch-thumb{
+  height:95px;display:flex;align-items:center;justify-content:center;
+  position:relative;overflow:hidden;
+}
+.ch-thumb::after{
+  content:'';position:absolute;inset:0;
+  background:linear-gradient(180deg,transparent 50%,rgba(0,0,0,0.55) 100%);
+}
+.ch-logo-wrap{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;position:relative;z-index:1;
+}
+.ch-logo-text{
+  font-family:'Space Grotesk',sans-serif;
+  font-size:20px;font-weight:800;color:white;letter-spacing:-0.5px;
+  text-shadow:0 2px 12px rgba(0,0,0,0.6);line-height:1;
+}
+.ch-logo-sub{
+  font-size:9px;font-weight:600;color:rgba(255,255,255,0.7);
+  text-transform:uppercase;letter-spacing:0.12em;
+}
+.ch-badge{
+  position:absolute;top:8px;right:8px;z-index:2;
+  display:flex;align-items:center;gap:4px;
+  padding:3px 7px;border-radius:6px;
+  font-size:8px;font-weight:800;letter-spacing:0.08em;
+}
+.ch-badge.live{background:rgba(239,68,68,0.9);color:white;}
+.ch-badge.soon-badge{background:rgba(100,100,130,0.8);color:rgba(255,255,255,0.6);}
+.ch-badge .bdot{width:4px;height:4px;border-radius:50%;background:white;animation:pulse-dot 1.4s infinite;}
+
+.ch-info{padding:10px 12px 12px;}
+.ch-name{
+  font-size:13px;font-weight:700;color:var(--text);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:3px;
+}
+.ch-meta{display:flex;align-items:center;gap:6px;}
+.ch-cat{font-size:10px;color:var(--text3);font-weight:500;}
+.ch-hd{
+  font-size:8px;font-weight:700;color:var(--cyan);
+  border:1px solid rgba(6,182,212,0.3);border-radius:4px;padding:1px 4px;
+}
+
+/* ── NO RESULTS ──────────────────────────────────────────────────────── */
+.no-results{
+  text-align:center;padding:64px 24px;color:var(--text4);
+}
+.no-results svg{margin:0 auto 12px;display:block;}
+.no-results p{font-size:14px;font-weight:500;}
+.no-results small{font-size:12px;color:var(--text4);margin-top:4px;display:block;}
+
+/* ── BOTTOM NAV (mobile) ─────────────────────────────────────────────── */
+.bottom-nav{
+  position:fixed;bottom:0;left:0;right:0;z-index:20;
+  padding:0 16px env(safe-area-inset-bottom, 12px);
+  background:rgba(7,7,15,0.88);
+  backdrop-filter:blur(24px);
+  border-top:1px solid var(--border);
+  display:none;
+}
+.bottom-nav-inner{
+  display:flex;justify-content:space-around;align-items:center;
+  height:56px;
+}
+.nav-btn{
+  flex:1;display:flex;flex-direction:column;align-items:center;
+  gap:4px;padding:0;background:none;border:none;cursor:pointer;
+  color:var(--text4);transition:color 0.2s;
+}
+.nav-btn.active{color:var(--purple);}
+.nav-btn span{font-size:10px;font-weight:600;}
+
+/* ── PLAYER SCREEN ───────────────────────────────────────────────────── */
+#player-screen{background:#000;}
+.player-wrap{flex:1;position:relative;overflow:hidden;}
+.player-iframe{
+  position:absolute;inset:0;width:100%;height:100%;
+  border:none;display:block;background:#000;
+}
+.player-overlay{
+  position:absolute;inset:0;z-index:5;
+  display:flex;flex-direction:column;pointer-events:none;
+}
+
+/* TOP BAR */
+.player-topbar{
+  display:flex;align-items:center;gap:10px;
+  padding:12px 16px;
+  background:linear-gradient(180deg,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0) 100%);
+  pointer-events:all;
+  transition:opacity 0.4s,transform 0.4s;
+}
+.player-topbar.hidden{opacity:0;transform:translateY(-8px);pointer-events:none;}
+.player-topbar-spacer{flex:1;}
+
+.ptb-btn{
+  width:40px;height:40px;border-radius:12px;flex-shrink:0;
+  background:rgba(255,255,255,0.1);
+  border:1px solid rgba(255,255,255,0.1);
+  display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:white;
+  transition:background 0.15s,border-color 0.15s,box-shadow 0.15s;
+  -webkit-tap-highlight-color:transparent;
+}
+.ptb-btn:hover{background:rgba(255,255,255,0.2);}
+.ptb-btn:active{background:rgba(255,255,255,0.15);}
+.ptb-btn.btn-active{
+  background:rgba(139,92,246,0.6);
+  border-color:var(--purple);
+  box-shadow:0 0 16px rgba(139,92,246,0.5);
+}
+
+.player-ch-info{flex:1;min-width:0;}
+.player-ch-name{
+  font-size:14px;font-weight:700;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.player-ch-live{
+  display:flex;align-items:center;gap:5px;margin-top:2px;
+}
+.player-ch-live .dot-live{width:5px;height:5px;}
+.player-ch-live span{font-size:10px;color:rgba(239,68,68,0.9);font-weight:600;}
+
+/* BOTTOM BAR */
+.player-bottombar{
+  display:flex;align-items:center;gap:8px;
+  padding:0 16px 12px;
+  margin-top:auto;
+  background:linear-gradient(0deg,rgba(0,0,0,0.85) 0%,rgba(0,0,0,0) 100%);
+  pointer-events:all;
+  transition:opacity 0.4s,transform 0.4s;
+}
+.player-bottombar.hidden{opacity:0;transform:translateY(8px);pointer-events:none;}
+
+.pbb-ch-scroll{
+  flex:1;display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;
+  padding:8px 0;
+}
+.pbb-ch-scroll::-webkit-scrollbar{display:none;}
+.pbb-ch-chip{
+  flex-shrink:0;display:flex;align-items:center;gap:6px;
+  padding:6px 12px;border-radius:20px;
+  background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);
+  cursor:pointer;color:rgba(255,255,255,0.6);
+  font-size:11px;font-weight:600;
+  transition:all 0.2s;-webkit-tap-highlight-color:transparent;
+}
+.pbb-ch-chip:hover{background:rgba(255,255,255,0.14);}
+.pbb-ch-chip.active{
+  background:rgba(139,92,246,0.4);border-color:var(--purple);color:white;
+}
+
+/* ── TOAST ───────────────────────────────────────────────────────────── */
+.toast{
+  position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);
+  z-index:100;
+  background:rgba(30,30,50,0.95);
+  border:1px solid rgba(255,255,255,0.1);
+  padding:12px 20px;border-radius:14px;
+  font-size:13px;font-weight:600;color:var(--text);
+  display:flex;align-items:center;gap:8px;
+  backdrop-filter:blur(16px);
+  opacity:0;pointer-events:none;
+  transition:opacity 0.25s,transform 0.25s;
+  white-space:nowrap;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* ── LOADING SPINNER ─────────────────────────────────────────────────── */
+.player-loading{
+  position:absolute;inset:0;z-index:4;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:#000;gap:16px;
+  transition:opacity 0.4s;
+}
+.player-loading.gone{opacity:0;pointer-events:none;}
+.spinner{
+  width:48px;height:48px;border-radius:50%;
+  border:3px solid rgba(139,92,246,0.15);
+  border-top-color:var(--purple);
+  animation:spin 0.9s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-ch-name{font-size:13px;font-weight:600;color:var(--text3);}
+
+/* ── RESPONSIVE ──────────────────────────────────────────────────────── */
+@media(max-width:640px){
+  .channel-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
+  .bottom-nav{display:block;}
+  .grid-wrap{padding-bottom:80px;}
+}
+@media(min-width:768px){
+  .channel-grid{grid-template-columns:repeat(auto-fill,minmax(170px,1fr));}
+}
+@media(min-width:1280px){
+  .channel-grid{grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;}
+  .grid-wrap{padding:0 24px 24px;}
+  .header-inner{padding:16px 28px 14px;}
+  .cats-wrap{padding:10px 28px;}
+  .section-hdr{padding:14px 28px 8px;}
+}
+</style>
+</head>
+<body>
+
+<!-- BACKGROUND -->
+<div class="bg-canvas">
+  <div class="bg-blob bg-blob-1"></div>
+  <div class="bg-blob bg-blob-2"></div>
+  <div class="bg-blob bg-blob-3"></div>
+  <canvas class="stars-canvas" id="stars-canvas"></canvas>
+</div>
+
+<!-- ══ HOME SCREEN ══════════════════════════════════════════════════════ -->
+<div class="screen" id="home-screen">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-inner">
+      <div class="header-top">
+        <div class="logo">
+          <div class="logo-mark">📺</div>
+          <div class="logo-text">
+            <div class="logo-title">Monchito Sport TV</div>
+            <div class="logo-sub">Deportes HD en vivo</div>
+          </div>
+        </div>
+        <div class="header-badges">
+          <div class="badge-live">
+            <div class="dot-live"></div>
+            <span>EN VIVO</span>
+          </div>
+          <div class="header-time" id="header-time">--:--</div>
+        </div>
+      </div>
+      <div class="search-wrap">
+        <svg class="search-ico" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <input class="search-input" type="search" id="search-input" placeholder="Buscar canal…" autocomplete="off" spellcheck="false"/>
+      </div>
+    </div>
+  </div>
+
+  <!-- Categories -->
+  <div class="cats-wrap" id="cats-wrap">
+    <button class="cat-btn active" data-cat="todos"><span class="cat-emoji">⚡</span>Todos</button>
+    <button class="cat-btn" data-cat="fútbol"><span class="cat-emoji">⚽</span>Fútbol</button>
+    <button class="cat-btn" data-cat="básquet"><span class="cat-emoji">🏀</span>Básquet</button>
+    <button class="cat-btn" data-cat="tenis"><span class="cat-emoji">🎾</span>Tenis</button>
+    <button class="cat-btn" data-cat="boxeo"><span class="cat-emoji">🥊</span>Boxeo</button>
+    <button class="cat-btn" data-cat="automovilismo"><span class="cat-emoji">🏎️</span>Automovilismo</button>
+    <button class="cat-btn" data-cat="otros"><span class="cat-emoji">🎯</span>Otros</button>
+  </div>
+
+  <!-- Grid -->
+  <div class="grid-wrap">
+    <div class="section-hdr">
+      <h2>Canales disponibles <span class="count" id="count-label"></span></h2>
+    </div>
+    <div class="channel-grid" id="channel-grid"></div>
+    <div class="no-results" id="no-results" style="display:none">
+      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" color="rgba(240,240,255,0.2)">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <p>Sin resultados</p>
+      <small>Intenta con otro término</small>
+    </div>
+  </div>
+
+  <!-- Bottom nav (mobile) -->
+  <div class="bottom-nav">
+    <div class="bottom-nav-inner">
+      <button class="nav-btn active" onclick="navTo('home')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+        <span>Inicio</span>
+      </button>
+      <button class="nav-btn" onclick="navTo('buscar')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        </svg>
+        <span>Buscar</span>
+      </button>
+      <button class="nav-btn" onclick="navTo('favoritos')">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+        </svg>
+        <span>Favoritos</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PLAYER SCREEN ═════════════════════════════════════════════════════ -->
+<div class="screen slide-in-hidden" id="player-screen">
+  <!-- Loading state -->
+  <div class="player-loading" id="player-loading">
+    <div class="spinner"></div>
+    <div class="loading-ch-name" id="loading-ch-name">Cargando canal…</div>
+  </div>
+
+  <div class="player-wrap">
+    <iframe
+      class="player-iframe"
+      id="player-iframe"
+      src=""
+      allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
+      allowfullscreen
+      referrerpolicy="no-referrer-when-downgrade"
+    ></iframe>
+
+    <!-- Overlay (tap to show/hide) -->
+    <div class="player-overlay" id="player-overlay" onclick="toggleBar()">
+
+      <!-- Top bar -->
+      <div class="player-topbar" id="player-topbar">
+        <button class="ptb-btn" onclick="closePlayer(event)" title="Volver">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M19 12H5"/><path d="M12 5l-7 7 7 7"/>
+          </svg>
+        </button>
+        <div class="player-ch-info">
+          <div class="player-ch-name" id="player-ch-name">Canal</div>
+          <div class="player-ch-live">
+            <div class="dot-live"></div>
+            <span>EN VIVO</span>
+          </div>
+        </div>
+        <div class="player-topbar-spacer"></div>
+        <button class="ptb-btn" id="cast-btn" onclick="toggleCast(event)" title="Transmitir a TV">
+          <!-- Cast icon -->
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M2 8.56V2h20v15H9"/>
+            <path d="M2 12.33C4.87 13.17 7 15.84 7 19"/>
+            <path d="M2 16.67C3.97 17.37 5 19 5 21"/>
+            <circle cx="2" cy="21" r="1" fill="currentColor"/>
+          </svg>
+        </button>
+        <button class="ptb-btn" id="fullscreen-btn" onclick="toggleFullscreen(event)" title="Pantalla completa">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="fs-icon">
+            <path d="M8 3H5a2 2 0 00-2 2v3M16 3h3a2 2 0 012 2v3M21 16v3a2 2 0 01-2 2h-3M8 21H5a2 2 0 01-2-2v-3"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Bottom channel quick-switch bar -->
+      <div class="player-bottombar" id="player-bottombar">
+        <div class="pbb-ch-scroll" id="pbb-ch-scroll"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ── Channel definitions ──────────────────────────────────────────────────────
+// gradient: CSS background value for the card thumbnail
+// logoLines: array of text lines to render in the card logo area
+// Add more channels following this pattern
+const CHANNELS = [
+  {
+    id: 'dsports',
+    name: 'DSports',
+    cat: 'fútbol',
+    url: 'https://latamvidzfy.org/dsports.php',
+    gradient: 'linear-gradient(145deg,#001a6e 0%,#0038cc 60%,#1a5cff 100%)',
+    logoLines: ['D·Sports'],
+    logoSub: 'HD',
+    live: true,
+    hd: true,
+  },
+  // ── Placeholder channels (add URLs to activate) ──
+  {
+    id: 'espn',
+    name: 'ESPN',
+    cat: 'fútbol',
+    url: '',
+    gradient: 'linear-gradient(145deg,#8b0000 0%,#cc0000 60%,#ff3333 100%)',
+    logoLines: ['ESPN'],
+    logoSub: 'HD',
+    live: true,
+    hd: true,
+    comingSoon: true,
+  },
+  {
+    id: 'espn2',
+    name: 'ESPN 2',
+    cat: 'fútbol',
+    url: '',
+    gradient: 'linear-gradient(145deg,#6b0000 0%,#aa0000 60%,#dd2222 100%)',
+    logoLines: ['ESPN','2'],
+    logoSub: '',
+    live: true,
+    hd: false,
+    comingSoon: true,
+  },
+  {
+    id: 'tycsports',
+    name: 'TyC Sports',
+    cat: 'fútbol',
+    url: '',
+    gradient: 'linear-gradient(145deg,#003d7a 0%,#005fbb 60%,#1a7fff 100%)',
+    logoLines: ['TyC','Sports'],
+    logoSub: '',
+    live: true,
+    hd: false,
+    comingSoon: true,
+  },
+  {
+    id: 'directvsports',
+    name: 'DirecTV Sports',
+    cat: 'fútbol',
+    url: '',
+    gradient: 'linear-gradient(145deg,#001a5c 0%,#003099 60%,#0044cc 100%)',
+    logoLines: ['DirecTV','Sports'],
+    logoSub: '',
+    live: true,
+    hd: false,
+    comingSoon: true,
+  },
+  {
+    id: 'foxsports',
+    name: 'Fox Sports',
+    cat: 'fútbol',
+    url: '',
+    gradient: 'linear-gradient(145deg,#001833 0%,#003580 60%,#0055cc 100%)',
+    logoLines: ['FOX','Sports'],
+    logoSub: '',
+    live: false,
+    hd: false,
+    comingSoon: true,
+  },
+  {
+    id: 'nba',
+    name: 'NBA TV',
+    cat: 'básquet',
+    url: '',
+    gradient: 'linear-gradient(145deg,#17408b 0%,#c9082a 100%)',
+    logoLines: ['NBA','TV'],
+    logoSub: '',
+    live: false,
+    hd: false,
+    comingSoon: true,
+  },
+  {
+    id: 'tntsp',
+    name: 'TNT Sports',
+    cat: 'básquet',
+    url: '',
+    gradient: 'linear-gradient(145deg,#8b0000 0%,#cc0000 100%)',
+    logoLines: ['TNT','Sports'],
+    logoSub: '',
+    live: false,
+    hd: false,
+    comingSoon: true,
+  },
+  {
+    id: 'f1',
+    name: 'F1 TV',
+    cat: 'automovilismo',
+    url: '',
+    gradient: 'linear-gradient(145deg,#e10600 0%,#ff3500 60%,#ff6600 100%)',
+    logoLines: ['F1','TV'],
+    logoSub: '',
+    live: false,
+    hd: false,
+    comingSoon: true,
+  },
+  {
+    id: 'tennis',
+    name: 'Tennis Channel',
+    cat: 'tenis',
+    url: '',
+    gradient: 'linear-gradient(145deg,#1a4a1a 0%,#2d7a2d 60%,#3da63d 100%)',
+    logoLines: ['Tennis','Channel'],
+    logoSub: '',
+    live: false,
+    hd: false,
+    comingSoon: true,
+  },
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+let activeCat = 'todos';
+let searchQ = '';
+let currentChId = null;
+let barVisible = true;
+let barTimer = null;
+let castStream = null;
+let castWindow = null;
+
+// ── Stars ─────────────────────────────────────────────────────────────────────
+(function drawStars() {
+  const canvas = document.getElementById('stars-canvas');
+  const ctx = canvas.getContext('2d');
+  const stars = Array.from({ length: 80 }, () => ({
+    x: Math.random(), y: Math.random(),
+    r: Math.random() * 1.2 + 0.2,
+    alpha: Math.random() * 0.4 + 0.05,
+    speed: Math.random() * 0.003 + 0.001,
+    phase: Math.random() * Math.PI * 2,
+  }));
+  function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+  window.addEventListener('resize', resize); resize();
+  function frame(t) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const s of stars) {
+      const a = s.alpha * (0.6 + 0.4 * Math.sin(t * s.speed + s.phase));
+      ctx.beginPath();
+      ctx.arc(s.x * canvas.width, s.y * canvas.height, s.r, 0, Math.PI * 2);
+      ctx.fillStyle = `rgba(200,190,255,${a})`;
+      ctx.fill();
+    }
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+
+// ── Clock ─────────────────────────────────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const h = now.getHours().toString().padStart(2, '0');
+  const m = now.getMinutes().toString().padStart(2, '0');
+  document.getElementById('header-time').textContent = `${h}:${m}`;
+}
+updateClock();
+setInterval(updateClock, 10000);
+
+// ── Filtering ─────────────────────────────────────────────────────────────────
+function getFiltered() {
+  return CHANNELS.filter(ch => {
+    if (activeCat !== 'todos' && ch.cat !== activeCat) return false;
+    if (searchQ && !ch.name.toLowerCase().includes(searchQ)) return false;
+    return true;
+  });
+}
+
+// ── Render grid ───────────────────────────────────────────────────────────────
+function renderGrid() {
+  const grid = document.getElementById('channel-grid');
+  const noRes = document.getElementById('no-results');
+  const countLabel = document.getElementById('count-label');
+  const chs = getFiltered();
+
+  countLabel.textContent = chs.length ? `(${chs.length})` : '';
+
+  if (!chs.length) {
+    grid.innerHTML = '';
+    noRes.style.display = 'block';
+    return;
+  }
+  noRes.style.display = 'none';
+
+  grid.innerHTML = chs.map(ch => {
+    const badge = ch.comingSoon
+      ? `<div class="ch-badge soon-badge">Próximamente</div>`
+      : ch.live
+        ? `<div class="ch-badge live"><div class="bdot"></div>EN VIVO</div>`
+        : '';
+
+    const logoHtml = ch.logoLines.map((line, i) =>
+      `<div class="ch-logo-text" style="font-size:${i > 0 && ch.logoLines.length > 1 ? '13px' : '22px'};${i > 0 ? 'opacity:0.75;' : ''}">${line}</div>`
+    ).join('');
+
+    const subHtml = ch.logoSub
+      ? `<div class="ch-logo-sub">${ch.logoSub}</div>` : '';
+
+    return `
+      <div class="ch-card${ch.comingSoon ? ' soon' : ''}"
+           data-id="${ch.id}"
+           onclick="handleCardClick('${ch.id}')"
+           role="button" tabindex="0">
+        <div class="ch-thumb" style="background:${ch.gradient};">
+          ${badge}
+          <div class="ch-logo-wrap">
+            ${logoHtml}
+            ${subHtml}
+          </div>
+        </div>
+        <div class="ch-info">
+          <div class="ch-name">${ch.name}</div>
+          <div class="ch-meta">
+            <div class="ch-cat">${ch.cat.charAt(0).toUpperCase() + ch.cat.slice(1)}</div>
+            ${ch.hd ? '<div class="ch-hd">HD</div>' : ''}
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+// ── Handle card click ─────────────────────────────────────────────────────────
+function handleCardClick(id) {
+  const ch = CHANNELS.find(c => c.id === id);
+  if (!ch) return;
+  if (ch.comingSoon || !ch.url) {
+    showToast('📡 Canal próximamente disponible', 2500);
+    return;
+  }
+  openChannel(id);
+}
+
+// ── Open player ───────────────────────────────────────────────────────────────
+function openChannel(id) {
+  const ch = CHANNELS.find(c => c.id === id);
+  if (!ch || !ch.url) return;
+
+  currentChId = id;
+
+  // Update player UI
+  document.getElementById('player-ch-name').textContent = ch.name;
+  document.getElementById('loading-ch-name').textContent = `Cargando ${ch.name}…`;
+
+  // Set iframe
+  const iframe = document.getElementById('player-iframe');
+  iframe.src = '';
+  iframe.src = ch.url;
+
+  // Show loading overlay
+  const loadingEl = document.getElementById('player-loading');
+  loadingEl.classList.remove('gone');
+
+  // Hide loading after a few seconds (iframe can't reliably signal load)
+  clearTimeout(window._loadTimer);
+  window._loadTimer = setTimeout(() => loadingEl.classList.add('gone'), 4000);
+
+  // Screen transition
+  document.getElementById('home-screen').classList.add('slide-out');
+  document.getElementById('player-screen').classList.remove('slide-in-hidden');
+
+  // Render quick-switch chips
+  renderBottomChips();
+
+  // Show controls
+  showBar(true);
+}
+
+// ── Close player ──────────────────────────────────────────────────────────────
+function closePlayer(e) {
+  if (e) e.stopPropagation();
+
+  document.getElementById('player-iframe').src = '';
+  document.getElementById('player-screen').classList.add('slide-in-hidden');
+  document.getElementById('home-screen').classList.remove('slide-out');
+  currentChId = null;
+
+  if (castStream) {
+    castStream.getTracks().forEach(t => t.stop());
+    castStream = null;
+    document.getElementById('cast-btn').classList.remove('btn-active');
+  }
+  try { castWindow?.close(); } catch {}
+  castWindow = null;
+}
+
+// ── Bottom quick-switch chips ─────────────────────────────────────────────────
+function renderBottomChips() {
+  const scroll = document.getElementById('pbb-ch-scroll');
+  const available = CHANNELS.filter(ch => ch.url && !ch.comingSoon);
+  scroll.innerHTML = available.map(ch =>
+    `<div class="pbb-ch-chip${ch.id === currentChId ? ' active' : ''}" onclick="switchChannel('${ch.id}',event)">
+      ${ch.name}
+    </div>`
+  ).join('');
+}
+
+function switchChannel(id, e) {
+  if (e) e.stopPropagation();
+  if (id === currentChId) return;
+  openChannel(id);
+}
+
+// ── Bar auto-hide ─────────────────────────────────────────────────────────────
+function showBar(force) {
+  const topbar = document.getElementById('player-topbar');
+  const bottombar = document.getElementById('player-bottombar');
+  topbar.classList.remove('hidden');
+  bottombar.classList.remove('hidden');
+  barVisible = true;
+  clearTimeout(barTimer);
+  if (!force) barTimer = setTimeout(hideBar, 4500);
+}
+
+function hideBar() {
+  document.getElementById('player-topbar').classList.add('hidden');
+  document.getElementById('player-bottombar').classList.add('hidden');
+  barVisible = false;
+}
+
+function toggleBar() {
+  if (barVisible) hideBar();
+  else showBar();
+}
+
+// ── Fullscreen ────────────────────────────────────────────────────────────────
+function toggleFullscreen(e) {
+  if (e) e.stopPropagation();
+  const el = document.getElementById('player-screen');
+  if (!document.fullscreenElement) {
+    el.requestFullscreen?.().catch(() => {});
+    document.getElementById('fullscreen-btn').classList.add('btn-active');
+  } else {
+    document.exitFullscreen?.();
+    document.getElementById('fullscreen-btn').classList.remove('btn-active');
+  }
+}
+
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement) {
+    document.getElementById('fullscreen-btn').classList.remove('btn-active');
+  }
+});
+
+// ── Cast ──────────────────────────────────────────────────────────────────────
+async function toggleCast(e) {
+  if (e) e.stopPropagation();
+  const btn = document.getElementById('cast-btn');
+
+  if (castStream) {
+    castStream.getTracks().forEach(t => t.stop());
+    castStream = null;
+    btn.classList.remove('btn-active');
+    try { castWindow?.close(); } catch {}
+    castWindow = null;
+    showToast('📺 Cast finalizado', 2000);
+    return;
+  }
+
+  showToast('🖥️ Selecciona la pantalla a compartir…', 2500);
+  try {
+    const stream = await navigator.mediaDevices.getDisplayMedia({
+      video: { frameRate: { ideal: 30, max: 60 }, width: { ideal: 1920 }, height: { ideal: 1080 } },
+      audio: { echoCancellation: false, noiseSuppression: false, sampleRate: 48000 },
+    });
+    castStream = stream;
+    btn.classList.add('btn-active');
+
+    // Open a TV-style window
+    const w = window.open('', '_blank',
+      'width=1280,height=720,scrollbars=no,toolbar=no,menubar=no,location=no,status=no'
+    );
+    if (w) {
+      castWindow = w;
+      w.document.write(`<!DOCTYPE html><html><head>
+        <title>📺 Monchito TV — Cast</title>
+        <style>*{margin:0;padding:0;}html,body{background:#000;width:100%;height:100%;overflow:hidden;}
+        video{width:100%;height:100%;object-fit:contain;}
+        .lbl{position:fixed;top:12px;left:50%;transform:translateX(-50%);
+          background:rgba(139,92,246,0.85);color:white;padding:6px 16px;
+          border-radius:20px;font-family:sans-serif;font-size:12px;font-weight:600;
+          pointer-events:none;animation:fadeOut 3s 2s forwards;}
+        @keyframes fadeOut{to{opacity:0;}}</style></head>
+        <body><video autoplay playsinline></video>
+        <div class="lbl">📺 Monchito Sport TV · Cast activo</div></body></html>`);
+      w.document.close();
+      const vid = w.document.querySelector('video');
+      if (vid) vid.srcObject = stream;
+      w.addEventListener('beforeunload', () => {
+        castStream = null;
+        btn.classList.remove('btn-active');
+        castWindow = null;
+      });
+    }
+
+    stream.getVideoTracks()[0]?.addEventListener('ended', () => {
+      castStream = null;
+      btn.classList.remove('btn-active');
+      try { castWindow?.close(); } catch {}
+      castWindow = null;
+      showToast('📺 Cast finalizado', 2000);
+    });
+
+    showToast('📺 Transmitiendo a tu pantalla TV', 3000);
+  } catch (err) {
+    if (err.name !== 'NotAllowedError') {
+      showToast('⚠️ No se pudo iniciar el cast', 2500);
+    }
+  }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer = null;
+function showToast(msg, duration = 2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+// ── Navigation (mobile) ───────────────────────────────────────────────────────
+function navTo(section) {
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  event.currentTarget?.classList.add('active');
+  if (section === 'buscar') {
+    document.getElementById('search-input').focus();
+    document.getElementById('search-input').scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+function init() {
+  renderGrid();
+
+  // Category buttons
+  document.querySelectorAll('.cat-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      activeCat = btn.dataset.cat;
+      document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderGrid();
+    });
+  });
+
+  // Search
+  document.getElementById('search-input').addEventListener('input', e => {
+    searchQ = e.target.value.toLowerCase().trim();
+    renderGrid();
+  });
+
+  // Keyboard
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      if (currentChId) closePlayer(null);
+    }
+    if (e.key === 'f' || e.key === 'F') {
+      if (currentChId) toggleFullscreen(null);
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
