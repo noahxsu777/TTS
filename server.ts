@@ -4,7 +4,8 @@ import { WebSocketServer, WebSocket } from 'ws';
 import cors from 'cors';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import { writeFile, mkdir, readdir, stat, unlink } from 'node:fs/promises';
 // @ts-ignore
 import * as cheerio from 'cheerio';
 
@@ -27,6 +28,8 @@ const httpServer = createServer(app);
 const PORT = parseInt(process.env.PORT || '3000', 10);
 const TIKTOOLS_API_KEY = process.env.TIKTOOLS_API_KEY || '';
 const IS_PROD = process.env.NODE_ENV === 'production';
+const SOUNDS_DIR = path.resolve(process.cwd(), 'uploads', 'sounds');
+mkdir(SOUNDS_DIR, { recursive: true }).catch(() => {});
 
 app.use(cors({ origin: '*' }));
 app.use(express.json({ limit: '2mb' }));
@@ -1012,6 +1015,59 @@ app.get('/api/fl-stream', async (req: Request, res: Response) => {
     res.json({ streams });
   } catch (e: any) {
     res.status(502).json({ error: e?.message });
+  }
+});
+
+// ── Sounds API — server-side MP3 storage with permanent URLs ──────────────────
+
+// Serve uploaded sounds as static files (before catch-all)
+app.use('/sounds', express.static(SOUNDS_DIR));
+
+// Upload an MP3 — POST /api/sounds/upload?name=filename.mp3
+app.post('/api/sounds/upload', express.raw({ type: '*/*', limit: '50mb' }), async (req: Request, res: Response) => {
+  const rawName = ((req.query.name as string) || '').replace(/[^a-zA-Z0-9.\-_ ]/g, '_').trim();
+  if (!rawName) return res.status(400).json({ error: 'name query param required' });
+
+  const filename = rawName.toLowerCase().endsWith('.mp3') ? rawName : rawName + '.mp3';
+  // Prevent path traversal
+  if (filename.includes('/') || filename.includes('..')) return res.status(400).json({ error: 'invalid name' });
+
+  const filePath = path.join(SOUNDS_DIR, filename);
+  try {
+    await writeFile(filePath, req.body as Buffer);
+    res.json({ url: `/sounds/${filename}`, filename, size: (req.body as Buffer).length });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// List all uploaded sounds — GET /api/sounds
+app.get('/api/sounds', async (_req: Request, res: Response) => {
+  try {
+    const names = await readdir(SOUNDS_DIR);
+    const mp3s = names.filter(n => n.toLowerCase().endsWith('.mp3'));
+    const list = await Promise.all(mp3s.map(async name => {
+      const s = await stat(path.join(SOUNDS_DIR, name));
+      return { name, url: `/sounds/${encodeURIComponent(name)}`, size: s.size, createdAt: s.birthtime };
+    }));
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    res.json(list);
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// Delete a sound — DELETE /api/sounds/:name
+app.delete('/api/sounds/:name', async (req: Request, res: Response) => {
+  const name = req.params.name.replace(/[^a-zA-Z0-9.\-_ ]/g, '_');
+  if (!name.toLowerCase().endsWith('.mp3') || name.includes('..')) {
+    return res.status(400).json({ error: 'invalid filename' });
+  }
+  try {
+    await unlink(path.join(SOUNDS_DIR, name));
+    res.json({ ok: true });
+  } catch {
+    res.status(404).json({ error: 'not found' });
   }
 });
 
