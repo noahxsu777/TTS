@@ -1018,51 +1018,77 @@ app.get('/api/fl-stream', async (req: Request, res: Response) => {
   }
 });
 
-// ── Sounds API — server-side MP3 storage with permanent URLs ──────────────────
+// ── Sounds API — serves committed .mpeg files + uploaded .mp3 files ───────────
 
-// Serve uploaded sounds as static files (before catch-all)
-app.use('/sounds', express.static(SOUNDS_DIR));
+const AUDIO_EXT = /\.(mp3|mpeg|mpg|m4a|ogg|wav|aac|flac)$/i;
+const ROOT_DIR = process.cwd();
 
-// Upload an MP3 — POST /api/sounds/upload?name=filename.mp3
-app.post('/api/sounds/upload', express.raw({ type: '*/*', limit: '50mb' }), async (req: Request, res: Response) => {
-  const rawName = ((req.query.name as string) || '').replace(/[^a-zA-Z0-9.\-_ ]/g, '_').trim();
-  if (!rawName) return res.status(400).json({ error: 'name query param required' });
-
-  const filename = rawName.toLowerCase().endsWith('.mp3') ? rawName : rawName + '.mp3';
-  // Prevent path traversal
-  if (filename.includes('/') || filename.includes('..')) return res.status(400).json({ error: 'invalid name' });
-
-  const filePath = path.join(SOUNDS_DIR, filename);
-  try {
-    await writeFile(filePath, req.body as Buffer);
-    res.json({ url: `/sounds/${filename}`, filename, size: (req.body as Buffer).length });
-  } catch (e: any) {
-    res.status(500).json({ error: e.message });
+// Serve individual sound file — checks uploads/sounds/ first, then project root
+app.get('/sounds/:name', (req: Request, res: Response) => {
+  const name = decodeURIComponent(req.params.name);
+  if (name.includes('..') || name.includes('/') || !AUDIO_EXT.test(name)) {
+    return res.status(400).send('invalid');
   }
+  const uploadPath = path.join(SOUNDS_DIR, name);
+  if (existsSync(uploadPath)) return res.sendFile(uploadPath);
+  const rootPath = path.join(ROOT_DIR, name);
+  if (existsSync(rootPath)) return res.sendFile(rootPath);
+  res.status(404).send('not found');
 });
 
-// List all uploaded sounds — GET /api/sounds
+// List all sounds — committed repo files + uploaded files, deduplicated
 app.get('/api/sounds', async (_req: Request, res: Response) => {
   try {
-    const names = await readdir(SOUNDS_DIR);
-    const mp3s = names.filter(n => n.toLowerCase().endsWith('.mp3'));
-    const list = await Promise.all(mp3s.map(async name => {
-      const s = await stat(path.join(SOUNDS_DIR, name));
-      return { name, url: `/sounds/${encodeURIComponent(name)}`, size: s.size, createdAt: s.birthtime };
-    }));
-    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const seen = new Set<string>();
+    const list: { name: string; url: string; size: number; createdAt: Date }[] = [];
+
+    // Uploaded files (uploads/sounds/)
+    try {
+      const names = await readdir(SOUNDS_DIR);
+      for (const name of names) {
+        if (!AUDIO_EXT.test(name)) continue;
+        const s = await stat(path.join(SOUNDS_DIR, name));
+        seen.add(name);
+        list.push({ name, url: `/sounds/${encodeURIComponent(name)}`, size: s.size, createdAt: s.birthtime });
+      }
+    } catch { /* dir may not exist yet */ }
+
+    // Committed repo files (project root)
+    try {
+      const names = await readdir(ROOT_DIR);
+      for (const name of names) {
+        if (!AUDIO_EXT.test(name) || seen.has(name)) continue;
+        const s = await stat(path.join(ROOT_DIR, name));
+        seen.add(name);
+        list.push({ name, url: `/sounds/${encodeURIComponent(name)}`, size: s.size, createdAt: s.birthtime });
+      }
+    } catch { /* ignore */ }
+
+    list.sort((a, b) => a.name.localeCompare(b.name));
     res.json(list);
   } catch (e: any) {
     res.status(500).json({ error: e.message });
   }
 });
 
-// Delete a sound — DELETE /api/sounds/:name
-app.delete('/api/sounds/:name', async (req: Request, res: Response) => {
-  const name = req.params.name.replace(/[^a-zA-Z0-9.\-_ ]/g, '_');
-  if (!name.toLowerCase().endsWith('.mp3') || name.includes('..')) {
-    return res.status(400).json({ error: 'invalid filename' });
+// Upload an audio file — POST /api/sounds/upload?name=filename
+app.post('/api/sounds/upload', express.raw({ type: '*/*', limit: '50mb' }), async (req: Request, res: Response) => {
+  const rawName = ((req.query.name as string) || '').replace(/[^a-zA-Z0-9.\-_ ]/g, '_').trim();
+  if (!rawName) return res.status(400).json({ error: 'name query param required' });
+  const filename = AUDIO_EXT.test(rawName) ? rawName : rawName + '.mp3';
+  if (filename.includes('/') || filename.includes('..')) return res.status(400).json({ error: 'invalid name' });
+  try {
+    await writeFile(path.join(SOUNDS_DIR, filename), req.body as Buffer);
+    res.json({ url: `/sounds/${encodeURIComponent(filename)}`, filename, size: (req.body as Buffer).length });
+  } catch (e: any) {
+    res.status(500).json({ error: e.message });
   }
+});
+
+// Delete an uploaded sound — DELETE /api/sounds/:name (only from uploads/, not committed files)
+app.delete('/api/sounds/:name', async (req: Request, res: Response) => {
+  const name = decodeURIComponent(req.params.name).replace(/[^a-zA-Z0-9.\-_ ]/g, '_');
+  if (!AUDIO_EXT.test(name) || name.includes('..')) return res.status(400).json({ error: 'invalid filename' });
   try {
     await unlink(path.join(SOUNDS_DIR, name));
     res.json({ ok: true });
