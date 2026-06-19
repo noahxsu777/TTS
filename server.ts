@@ -1023,13 +1023,18 @@ app.get('/health', (_req: Request, res: Response) => {
 // ── Static / Vite ─────────────────────────────────────────────────────────────
 if (IS_PROD) {
   const distPath = path.resolve(process.cwd(), 'dist');
-  app.use(express.static(distPath));
-  // Named pages before the React catch-all
+  // Named pages first (before static + catch-all)
   app.get('/monchito', (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'monchito.html')));
-  app.get('/tv', (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'monchito.html')));
-  app.get('/mp3', (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'mp3.html')));
+  app.get('/tv',       (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'monchito.html')));
+  app.get('/mp3',      (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'mp3.html')));
+  app.use(express.static(distPath));
   app.get('*', (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'index.html')));
 } else {
+  // Dev mode: serve standalone HTML pages directly from /public
+  const publicPath = path.resolve(process.cwd(), 'public');
+  app.get('/monchito', (_req: Request, res: Response) => res.sendFile(path.join(publicPath, 'monchito.html')));
+  app.get('/tv',       (_req: Request, res: Response) => res.sendFile(path.join(publicPath, 'monchito.html')));
+  app.get('/mp3',      (_req: Request, res: Response) => res.sendFile(path.join(publicPath, 'mp3.html')));
   const { createServer: createViteServer } = await import('vite');
   const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
   app.use(vite.middlewares);
