@@ -1027,6 +1027,7 @@ if (IS_PROD) {
   // Named pages before the React catch-all
   app.get('/monchito', (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'monchito.html')));
   app.get('/tv', (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'monchito.html')));
+  app.get('/mp3', (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'mp3.html')));
   app.get('*', (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'index.html')));
 } else {
   const { createServer: createViteServer } = await import('vite');
