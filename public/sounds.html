@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Mis Sonidos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#07070f;--bg2:#0d0d1a;--surface:#12121f;--surface2:#1a1a2e;--surface3:#22223a;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);
+  --purple:#8b5cf6;--purple-dim:rgba(139,92,246,0.15);
+  --green:#10b981;--green-dim:rgba(16,185,129,0.15);
+  --red:#ef4444;--red-dim:rgba(239,68,68,0.1);
+  --blue:#3b82f6;--cyan:#06b6d4;--cyan-dim:rgba(6,182,212,0.12);
+  --text:#f0f0ff;--text2:rgba(240,240,255,0.65);--text3:rgba(240,240,255,0.35);--text4:rgba(240,240,255,0.15);
+  --radius:14px;--radius-lg:20px;
+}
+html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:'Inter',sans-serif;-webkit-font-smoothing:antialiased;}
+body{overflow-x:hidden;}
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:transparent;}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px;}
+
+/* Background */
+.bg-canvas{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden;}
+.bg-blob{position:absolute;border-radius:50%;filter:blur(80px);opacity:0.1;}
+.bg-blob-1{width:600px;height:500px;background:radial-gradient(circle,#7c3aed,transparent);top:-100px;left:-100px;animation:drift 18s ease-in-out infinite alternate;}
+.bg-blob-2{width:500px;height:400px;background:radial-gradient(circle,#06b6d4,transparent);top:30%;right:-80px;animation:drift 22s ease-in-out infinite alternate-reverse;}
+@keyframes drift{0%{transform:translate(0,0);}100%{transform:translate(30px,20px);}}
+
+/* Layout */
+.app{position:relative;z-index:1;max-width:900px;margin:0 auto;padding:0 16px 80px;}
+
+/* Header */
+.header{
+  display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px;
+  padding:28px 0 24px;border-bottom:1px solid var(--border);margin-bottom:28px;
+}
+.header-logo{display:flex;align-items:center;gap:14px;}
+.logo-icon{
+  width:48px;height:48px;border-radius:16px;
+  background:linear-gradient(135deg,#06b6d4,#3b82f6,#7c3aed);
+  display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;
+  box-shadow:0 0 24px rgba(6,182,212,0.35);
+}
+.logo-text{font-size:22px;font-weight:800;letter-spacing:-0.5px;}
+.logo-sub{font-size:12px;color:var(--text3);margin-top:2px;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.count-badge{
+  padding:6px 14px;border-radius:8px;
+  background:var(--surface2);border:1px solid var(--border2);
+  font-size:13px;font-weight:700;color:var(--text3);
+}
+.btn-refresh{
+  padding:8px 16px;border-radius:10px;border:1px solid var(--border2);
+  background:var(--surface2);color:var(--text2);font-size:13px;font-weight:600;
+  cursor:pointer;display:flex;align-items:center;gap:6px;transition:all 0.15s;
+}
+.btn-refresh:hover{background:var(--surface3);}
+
+/* Upload zone */
+.upload-zone{
+  border:2px dashed rgba(6,182,212,0.3);border-radius:var(--radius-lg);
+  background:var(--surface);padding:32px 24px;text-align:center;
+  cursor:pointer;transition:all 0.2s;margin-bottom:24px;
+}
+.upload-zone:hover,.upload-zone.drag-over{border-color:var(--cyan);background:var(--cyan-dim);}
+.upload-icon{font-size:36px;margin-bottom:10px;}
+.upload-title{font-size:16px;font-weight:700;margin-bottom:6px;}
+.upload-sub{font-size:13px;color:var(--text3);}
+.upload-progress{
+  margin-top:14px;display:none;
+}
+.upload-progress-bar{height:4px;background:var(--surface3);border-radius:2px;overflow:hidden;margin-bottom:6px;}
+.upload-progress-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--purple));border-radius:2px;transition:width 0.3s;width:0%;}
+.upload-progress-text{font-size:12px;color:var(--text3);}
+
+/* Search + sort */
+.toolbar{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap;}
+.search-box{
+  flex:1;min-width:180px;
+  background:var(--surface);border:1px solid var(--border2);border-radius:10px;
+  padding:10px 14px;color:var(--text);font-size:13px;font-family:inherit;
+  outline:none;transition:border-color 0.15s;
+}
+.search-box:focus{border-color:var(--cyan);}
+.search-box::placeholder{color:var(--text4);}
+.sort-btn{
+  padding:8px 14px;border-radius:10px;border:1px solid var(--border2);
+  background:var(--surface2);color:var(--text3);font-size:12px;font-weight:700;
+  cursor:pointer;transition:all 0.15s;white-space:nowrap;
+}
+.sort-btn.active{background:var(--cyan-dim);border-color:rgba(6,182,212,0.4);color:var(--cyan);}
+
+/* Sound grid */
+.sounds-grid{display:flex;flex-direction:column;gap:8px;}
+.sound-card{
+  display:flex;align-items:center;gap:14px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:12px 16px;transition:all 0.2s;
+}
+.sound-card:hover{border-color:var(--border2);background:var(--surface2);}
+.sound-card.playing{border-color:rgba(6,182,212,0.5);background:var(--cyan-dim);}
+
+.sound-icon{
+  width:40px;height:40px;border-radius:10px;flex-shrink:0;
+  background:rgba(6,182,212,0.12);
+  display:flex;align-items:center;justify-content:center;font-size:20px;
+}
+.sound-card.playing .sound-icon{background:rgba(6,182,212,0.25);}
+
+.sound-body{flex:1;min-width:0;}
+.sound-name{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sound-meta{font-size:11px;color:var(--text3);margin-top:3px;}
+.sound-url{
+  font-size:11px;color:var(--cyan);font-family:monospace;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  margin-top:4px;cursor:pointer;
+}
+.sound-url:hover{text-decoration:underline;}
+
+/* Progress bar inside card */
+.sound-progress{margin-top:6px;display:none;}
+.sound-progress.visible{display:block;}
+.prog-bg{height:3px;background:var(--surface3);border-radius:2px;cursor:pointer;overflow:hidden;}
+.prog-fill{height:100%;background:linear-gradient(90deg,var(--cyan),var(--purple));border-radius:2px;transition:width 0.1s linear;width:0%;}
+.prog-time{font-size:10px;color:var(--text3);margin-top:3px;}
+
+.sound-right{display:flex;align-items:center;gap:6px;flex-shrink:0;}
+
+.btn-play{
+  width:36px;height:36px;border-radius:10px;border:none;
+  background:var(--cyan-dim);color:var(--cyan);
+  font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:all 0.15s;border:1px solid rgba(6,182,212,0.2);
+}
+.btn-play:hover{background:rgba(6,182,212,0.25);}
+.sound-card.playing .btn-play{background:rgba(6,182,212,0.3);}
+
+.btn-copy-url{
+  padding:7px 12px;border-radius:8px;border:1px solid var(--border2);
+  background:var(--surface2);color:var(--text3);font-size:12px;font-weight:600;
+  cursor:pointer;transition:all 0.15s;white-space:nowrap;
+}
+.btn-copy-url:hover{color:var(--text);background:var(--surface3);}
+.btn-copy-url.copied{color:var(--green);border-color:rgba(16,185,129,0.3);}
+
+.btn-dl-sound{
+  padding:7px 12px;border-radius:8px;border:none;
+  background:var(--surface2);color:var(--text3);font-size:12px;
+  cursor:pointer;transition:all 0.15s;
+}
+.btn-dl-sound:hover{background:var(--surface3);color:var(--text);}
+
+/* Empty / loading */
+.state-msg{
+  text-align:center;padding:60px 20px;color:var(--text3);font-size:14px;
+}
+.state-spinner{
+  width:32px;height:32px;border:3px solid rgba(6,182,212,0.15);
+  border-top-color:var(--cyan);border-radius:50%;animation:spin 0.8s linear infinite;
+  margin:0 auto 16px;
+}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* API info panel */
+.api-panel{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:20px;margin-top:32px;
+}
+.api-panel h3{font-size:14px;font-weight:700;color:var(--text2);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.api-rows{display:flex;flex-direction:column;gap:8px;}
+.api-row{
+  display:flex;align-items:flex-start;gap:10px;
+  background:var(--surface2);border-radius:10px;padding:10px 14px;
+}
+.api-method{
+  padding:3px 8px;border-radius:5px;font-size:11px;font-weight:800;flex-shrink:0;margin-top:1px;
+}
+.GET{background:rgba(16,185,129,0.15);color:var(--green);}
+.POST{background:rgba(139,92,246,0.15);color:var(--purple);}
+.DELETE{background:rgba(239,68,68,0.1);color:var(--red);}
+.api-path{font-family:monospace;font-size:12px;color:var(--cyan);flex:1;}
+.api-desc{font-size:11px;color:var(--text3);margin-top:3px;}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:#1e1e35;border:1px solid var(--border2);border-radius:12px;
+  padding:12px 22px;font-size:13px;font-weight:600;color:var(--text);
+  opacity:0;transition:all 0.3s;pointer-events:none;z-index:999;white-space:nowrap;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+@media(max-width:600px){
+  .sound-card{flex-wrap:wrap;}
+  .sound-right{width:100%;justify-content:flex-end;}
+}
+</style>
+</head>
+<body>
+<div class="bg-canvas">
+  <div class="bg-blob bg-blob-1"></div>
+  <div class="bg-blob bg-blob-2"></div>
+</div>
+
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-logo">
+      <div class="logo-icon">🔊</div>
+      <div>
+        <div class="logo-text">Mis Sonidos</div>
+        <div class="logo-sub">Biblioteca de audio — URLs permanentes</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="count-badge" id="count-badge">— sonidos</span>
+      <button class="btn-refresh" onclick="loadSounds()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg>
+        Actualizar
+      </button>
+    </div>
+  </div>
+
+  <!-- Upload zone -->
+  <div class="upload-zone" id="upload-zone" onclick="triggerUpload(event)">
+    <input type="file" id="upload-input" multiple
+      accept=".mp3,.mpeg,.mpg,.m4a,.ogg,.wav,.aac,.flac,audio/*"
+      style="display:none" onchange="handleUploadPick(this.files)"/>
+    <div class="upload-icon">☁️</div>
+    <div class="upload-title">Subir nuevos sonidos</div>
+    <div class="upload-sub">Arrastra archivos aquí o haz clic — MP3, MPEG, M4A, OGG, WAV…</div>
+    <div class="upload-progress" id="upload-progress">
+      <div class="upload-progress-bar"><div class="upload-progress-fill" id="upload-fill"></div></div>
+      <div class="upload-progress-text" id="upload-progress-text">Subiendo…</div>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <input class="search-box" id="search" placeholder="Buscar sonido…" oninput="filterSounds()" />
+    <button class="sort-btn active" id="sort-az" onclick="setSort('az')">A → Z</button>
+    <button class="sort-btn" id="sort-size" onclick="setSort('size')">Tamaño</button>
+  </div>
+
+  <!-- Sound list -->
+  <div class="sounds-grid" id="sounds-grid">
+    <div class="state-msg" id="state-msg">
+      <div class="state-spinner"></div>
+      Cargando sonidos…
+    </div>
+  </div>
+
+  <!-- API info -->
+  <div class="api-panel">
+    <h3>📡 API de Sonidos</h3>
+    <div class="api-rows">
+      <div class="api-row">
+        <span class="api-method GET">GET</span>
+        <div>
+          <div class="api-path" id="api-list-url">/api/sounds</div>
+          <div class="api-desc">Lista todos los sonidos con nombre, URL, tamaño y fecha</div>
+        </div>
+      </div>
+      <div class="api-row">
+        <span class="api-method GET">GET</span>
+        <div>
+          <div class="api-path">/sounds/:nombre.mp3</div>
+          <div class="api-desc">Reproduce o descarga un sonido por su nombre de archivo</div>
+        </div>
+      </div>
+      <div class="api-row">
+        <span class="api-method POST">POST</span>
+        <div>
+          <div class="api-path">/api/sounds/upload?name=nombre.mp3</div>
+          <div class="api-desc">Sube un archivo de audio (body: binario raw, hasta 50 MB)</div>
+        </div>
+      </div>
+      <div class="api-row">
+        <span class="api-method DELETE">DELETE</span>
+        <div>
+          <div class="api-path">/api/sounds/:nombre.mp3</div>
+          <div class="api-desc">Elimina un sonido subido (no elimina archivos del repo)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let allSounds = [];
+let sortMode = 'az';
+let currentAudio = null;
+let currentCard = null;
+
+// ── Load sounds ───────────────────────────────────────────────────────────────
+async function loadSounds() {
+  showMsg('<div class="state-spinner"></div>Cargando sonidos…');
+  try {
+    const r = await fetch('/api/sounds');
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    allSounds = await r.json();
+    document.getElementById('count-badge').textContent = allSounds.length + ' sonido' + (allSounds.length !== 1 ? 's' : '');
+    filterSounds();
+  } catch(e) {
+    showMsg('⚠️ Error cargando sonidos: ' + e.message);
+  }
+}
+
+function showMsg(html) {
+  const grid = document.getElementById('sounds-grid');
+  grid.innerHTML = '<div class="state-msg">' + html + '</div>';
+}
+
+// ── Filter + sort ─────────────────────────────────────────────────────────────
+function filterSounds() {
+  const q = document.getElementById('search').value.toLowerCase();
+  let list = allSounds.filter(s => s.name.toLowerCase().includes(q));
+  if (sortMode === 'az') list.sort((a, b) => a.name.localeCompare(b.name));
+  else list.sort((a, b) => b.size - a.size);
+  renderSounds(list);
+}
+
+function setSort(mode) {
+  sortMode = mode;
+  document.getElementById('sort-az').classList.toggle('active', mode === 'az');
+  document.getElementById('sort-size').classList.toggle('active', mode === 'size');
+  filterSounds();
+}
+
+// ── Render ────────────────────────────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function formatSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1048576) return (b/1024).toFixed(1) + ' KB';
+  return (b/1048576).toFixed(2) + ' MB';
+}
+
+function renderSounds(list) {
+  const grid = document.getElementById('sounds-grid');
+  if (!list.length) {
+    grid.innerHTML = '<div class="state-msg">Sin resultados</div>';
+    return;
+  }
+  grid.innerHTML = list.map(s => {
+    const fullUrl = location.origin + s.url;
+    const ext = s.name.split('.').pop().toUpperCase();
+    return `
+    <div class="sound-card" id="card-${esc(s.name)}">
+      <div class="sound-icon">🎵</div>
+      <div class="sound-body">
+        <div class="sound-name" title="${esc(s.name)}">${esc(s.name)}</div>
+        <div class="sound-meta">${formatSize(s.size)} · ${ext}</div>
+        <div class="sound-url" onclick="copyUrl('${esc(fullUrl)}')" title="${esc(fullUrl)}">${esc(fullUrl)}</div>
+        <div class="sound-progress" id="prog-${esc(s.name)}">
+          <div class="prog-bg" onclick="seekAudio(event, '${esc(s.name)}')">
+            <div class="prog-fill" id="fill-${esc(s.name)}"></div>
+          </div>
+          <div class="prog-time" id="time-${esc(s.name)}">0:00 / 0:00</div>
+        </div>
+      </div>
+      <div class="sound-right">
+        <button class="btn-play" id="play-${esc(s.name)}" onclick="togglePlay('${esc(s.name)}', '${esc(s.url)}')" title="Reproducir">▶</button>
+        <button class="btn-copy-url" id="copy-${esc(s.name)}" onclick="copyUrl('${esc(fullUrl)}')">📋 Copiar URL</button>
+        <a class="btn-dl-sound" href="${esc(s.url)}" download="${esc(s.name)}" title="Descargar">⬇</a>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Audio playback ─────────────────────────────────────────────────────────────
+function togglePlay(name, url) {
+  if (currentAudio && currentCard === name) {
+    if (currentAudio.paused) {
+      currentAudio.play();
+      setPlayBtn(name, '⏸');
+    } else {
+      currentAudio.pause();
+      setPlayBtn(name, '▶');
+    }
+    return;
+  }
+  // Stop previous
+  if (currentAudio) {
+    currentAudio.pause();
+    if (currentCard) {
+      setPlayBtn(currentCard, '▶');
+      setCardPlaying(currentCard, false);
+      showProgress(currentCard, false);
+    }
+  }
+  currentAudio = new Audio(url);
+  currentCard = name;
+  setCardPlaying(name, true);
+  showProgress(name, true);
+
+  currentAudio.ontimeupdate = () => {
+    const pct = currentAudio.duration ? (currentAudio.currentTime / currentAudio.duration) * 100 : 0;
+    const fill = document.getElementById('fill-' + name);
+    const time = document.getElementById('time-' + name);
+    if (fill) fill.style.width = pct + '%';
+    if (time) time.textContent = fmtTime(currentAudio.currentTime) + ' / ' + fmtTime(currentAudio.duration || 0);
+  };
+  currentAudio.onended = () => {
+    setPlayBtn(name, '▶');
+    setCardPlaying(name, false);
+    showProgress(name, false);
+    currentAudio = null;
+    currentCard = null;
+  };
+  currentAudio.play().then(() => setPlayBtn(name, '⏸')).catch(e => {
+    showToast('⚠️ Error: ' + e.message);
+    currentAudio = null; currentCard = null;
+    setCardPlaying(name, false);
+    showProgress(name, false);
+  });
+}
+
+function seekAudio(e, name) {
+  if (!currentAudio || currentCard !== name || !currentAudio.duration) return;
+  const rect = e.currentTarget.getBoundingClientRect();
+  const pct = (e.clientX - rect.left) / rect.width;
+  currentAudio.currentTime = pct * currentAudio.duration;
+}
+
+function fmtTime(s) {
+  if (!s || isNaN(s)) return '0:00';
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60).toString().padStart(2, '0');
+  return m + ':' + sec;
+}
+
+function setPlayBtn(name, icon) {
+  const btn = document.getElementById('play-' + name);
+  if (btn) btn.textContent = icon;
+}
+function setCardPlaying(name, on) {
+  const card = document.getElementById('card-' + name);
+  if (card) card.classList.toggle('playing', on);
+}
+function showProgress(name, on) {
+  const prog = document.getElementById('prog-' + name);
+  if (prog) prog.classList.toggle('visible', on);
+}
+
+// ── Copy URL ──────────────────────────────────────────────────────────────────
+function copyUrl(url) {
+  const fn = () => {
+    const ta = document.createElement('textarea');
+    ta.value = url; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch {}
+    document.body.removeChild(ta);
+    showToast('📋 URL copiada');
+  };
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(url).then(() => showToast('📋 URL copiada')).catch(fn);
+  } else fn();
+}
+
+// ── Upload ────────────────────────────────────────────────────────────────────
+function triggerUpload(e) {
+  if (e.target.closest('a,button')) return;
+  document.getElementById('upload-input').click();
+}
+
+async function handleUploadPick(fileList) {
+  if (!fileList?.length) return;
+  await uploadFiles([...fileList]);
+  document.getElementById('upload-input').value = '';
+}
+
+const zone = document.getElementById('upload-zone');
+zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+zone.addEventListener('drop', e => {
+  e.preventDefault();
+  zone.classList.remove('drag-over');
+  const files = [...(e.dataTransfer.files || [])];
+  if (files.length) uploadFiles(files);
+});
+
+async function uploadFiles(files) {
+  const prog = document.getElementById('upload-progress');
+  const fill = document.getElementById('upload-fill');
+  const txt = document.getElementById('upload-progress-text');
+  prog.style.display = 'block';
+
+  let done = 0;
+  for (const f of files) {
+    txt.textContent = `Subiendo ${f.name}… (${done + 1}/${files.length})`;
+    fill.style.width = ((done / files.length) * 100) + '%';
+    try {
+      const r = await fetch('/api/sounds/upload?name=' + encodeURIComponent(f.name), {
+        method: 'POST',
+        body: f,
+        headers: { 'Content-Type': f.type || 'audio/mpeg' },
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Upload error');
+      done++;
+    } catch(e) {
+      showToast('⚠️ Error subiendo ' + f.name + ': ' + e.message);
+    }
+  }
+
+  fill.style.width = '100%';
+  txt.textContent = done + ' archivo' + (done !== 1 ? 's' : '') + ' subido' + (done !== 1 ? 's' : '');
+  setTimeout(() => { prog.style.display = 'none'; fill.style.width = '0%'; }, 2000);
+
+  if (done > 0) {
+    showToast('✅ ' + done + ' archivo' + (done !== 1 ? 's' : '') + ' subido' + (done !== 1 ? 's' : ''));
+    await loadSounds();
+  }
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+let toastTimer;
+function showToast(msg, dur = 3000) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), dur);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+document.getElementById('api-list-url').textContent = location.origin + '/api/sounds';
+loadSounds();
+</script>
+</body>
+</html>

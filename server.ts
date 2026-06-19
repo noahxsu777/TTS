@@ -1109,6 +1109,7 @@ if (IS_PROD) {
   app.get('/monchito', (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'monchito.html')));
   app.get('/tv',       (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'monchito.html')));
   app.get('/mp3',      (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'mp3.html')));
+  app.get('/mis-sonidos', (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'sounds.html')));
   app.use(express.static(distPath));
   app.get('*', (_req: Request, res: Response) => res.sendFile(path.join(distPath, 'index.html')));
 } else {
@@ -1117,6 +1118,7 @@ if (IS_PROD) {
   app.get('/monchito', (_req: Request, res: Response) => res.sendFile(path.join(publicPath, 'monchito.html')));
   app.get('/tv',       (_req: Request, res: Response) => res.sendFile(path.join(publicPath, 'monchito.html')));
   app.get('/mp3',      (_req: Request, res: Response) => res.sendFile(path.join(publicPath, 'mp3.html')));
+  app.get('/mis-sonidos', (_req: Request, res: Response) => res.sendFile(path.join(publicPath, 'sounds.html')));
   const { createServer: createViteServer } = await import('vite');
   const vite = await createViteServer({ server: { middlewareMode: true }, appType: 'spa' });
   app.use(vite.middlewares);
