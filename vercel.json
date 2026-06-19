@@ -1,0 +1,26 @@
+{
+  "outputDirectory": "public",
+  "buildCommand": "mkdir -p public/sounds && for f in *.mpeg *.mp3 *.m4a *.ogg *.wav *.aac *.flac; do [ -f \"$f\" ] && cp \"$f\" public/sounds/; done; exit 0",
+  "rewrites": [
+    { "source": "/mis-sonidos", "destination": "/sounds.html" },
+    { "source": "/mp3", "destination": "/mp3.html" },
+    { "source": "/monchito", "destination": "/monchito.html" },
+    { "source": "/tv", "destination": "/monchito.html" }
+  ],
+  "headers": [
+    {
+      "source": "/sounds/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=86400" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Access-Control-Allow-Methods", "value": "GET, POST, DELETE, OPTIONS" }
+      ]
+    }
+  ]
+}
