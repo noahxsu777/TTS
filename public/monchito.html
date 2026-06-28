@@ -1057,11 +1057,15 @@ function getIptvChannels() {
       url: ch.url,
       img: ch.logo || '',
       logoLines: [ch.name],
-      logoSub: ch.url.includes('.m3u8') ? 'HLS' : 'IPTV',
+      logoSub: (ch.streams && ch.streams.length > 1)
+        ? `${ch.streams.length} opciones`
+        : ch.url.includes('.m3u8') ? 'HLS' : 'IPTV',
       gradient: 'linear-gradient(145deg,#1a0a2e 0%,#2d1b4e 60%,#4a2d7a 100%)',
       live: true,
       hd: ch.url.includes('.m3u8'),
       _iptvPlaylistId: p.id,
+      streams: ch.streams || [],
+      _pageUrl: ch._pageUrl || ch.url,
     }))
   );
 }
@@ -1188,19 +1192,21 @@ async function importTvporInternet() {
   if (!btn) return;
   btn.disabled = true;
   const orig = btn.innerHTML;
-  btn.innerHTML = '⏳ Importando canales…';
+
+  function setStatus(msg) { btn.innerHTML = msg; }
+
   try {
+    // Step 1: get channel list from main page
+    setStatus('⏳ Obteniendo lista de canales…');
     const r = await fetch('/api/tvporinternet-scrape', { signal: AbortSignal.timeout(30000) });
     const data = await r.json();
-    if (data.error && (!data.channels || !data.channels.length)) {
-      showToast('⚠️ ' + data.error, 5000);
-      return;
-    }
+
     if (!data.channels || !data.channels.length) {
-      showToast('⚠️ No se encontraron canales en TVporInternet2', 4000);
+      showToast('⚠️ ' + (data.error || 'No se encontraron canales'), 5000);
       return;
     }
-    // Remove existing tvporinternet import if any
+
+    // Step 2: create playlist immediately with page URLs so channels appear right away
     iptvPlaylists = iptvPlaylists.filter(p => p.source !== 'tvporinternet');
     const playlist = {
       id: 'tvporinternet',
@@ -1211,7 +1217,9 @@ async function importTvporInternet() {
         id: 'tvpi_' + (ch.pageUrl.split('/').filter(Boolean).pop() || i),
         name: ch.name,
         logo: ch.logo || '',
-        url: ch.pageUrl,
+        url: ch.pageUrl,   // will be updated to first stream URL as we resolve
+        streams: [],
+        _pageUrl: ch.pageUrl,
         group: 'TVporInternet',
       })),
       loadedAt: new Date().toISOString(),
@@ -1220,7 +1228,39 @@ async function importTvporInternet() {
     saveIptvPlaylists();
     renderGrid();
     renderIptvList();
-    showToast('✅ ' + data.channels.length + ' canales importados de TVporInternet2', 3500);
+    showToast(`📡 ${data.channels.length} canales encontrados — extrayendo streams…`, 3000);
+
+    // Step 3: resolve stream options for each channel in parallel batches of 5
+    const BATCH = 5;
+    let resolved = 0;
+    const total = playlist.channels.length;
+
+    for (let i = 0; i < total; i += BATCH) {
+      const batch = playlist.channels.slice(i, i + BATCH);
+      setStatus(`⏳ ${Math.min(i + BATCH, total)}/${total} canales…`);
+
+      await Promise.all(batch.map(async ch => {
+        try {
+          const pr = await fetch(
+            '/api/tvporinternet-scrape?page=' + encodeURIComponent(ch._pageUrl),
+            { signal: AbortSignal.timeout(12000) }
+          );
+          const pd = await pr.json();
+          if (pd.streams && pd.streams.length) {
+            ch.streams = pd.streams;
+            ch.url = pd.streams[0].url;  // direct player URL as default
+            resolved++;
+          }
+        } catch {}
+      }));
+
+      // Update grid after each batch so channels appear as they resolve
+      saveIptvPlaylists();
+      renderGrid();
+    }
+
+    renderIptvList();
+    showToast(`✅ ${resolved}/${total} canales con stream directo`, 4000);
   } catch (err) {
     showToast('⚠️ ' + (err?.message || 'Error al importar'), 4000);
   } finally {
@@ -1703,8 +1743,15 @@ async function openChannel(id, chOverride) {
     return;
   }
 
-  // TVporInternet2 channel page — extract stream options dynamically
-  if (ch.url && ch.url.includes('tvporinternet2.com')) {
+  // Channels with pre-fetched stream options (populated during import)
+  if (ch.streams && ch.streams.length) {
+    renderOptionsBar(ch.streams);
+    playIframe(ch.streams[0].url);
+    return;
+  }
+
+  // TVporInternet2 channel page with no pre-fetched streams — fetch on demand
+  if (ch._pageUrl && ch._pageUrl.includes('tvporinternet2.com')) {
     try {
       const cacheKey = 'tvpi_' + id;
       let streams;
@@ -1712,10 +1759,10 @@ async function openChannel(id, chOverride) {
       if (cached) {
         streams = JSON.parse(cached);
       } else {
-        const r = await fetch('/api/tvporinternet-scrape?page=' + encodeURIComponent(ch.url),
+        const r = await fetch('/api/tvporinternet-scrape?page=' + encodeURIComponent(ch._pageUrl),
           { signal: AbortSignal.timeout(12000) });
-        const data = await r.json();
-        streams = data.streams || [];
+        const d = await r.json();
+        streams = d.streams || [];
         if (streams.length) sessionStorage.setItem(cacheKey, JSON.stringify(streams));
       }
       if (streams && streams.length) {
