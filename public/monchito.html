@@ -358,6 +358,41 @@ html,body{
   background:rgba(139,92,246,0.4);border-color:var(--purple);color:white;
 }
 
+/* Stream option buttons */
+.player-opts-bar{
+  display:flex;align-items:center;gap:8px;
+  padding:0 16px 8px;justify-content:center;
+  pointer-events:all;
+  transition:opacity 0.3s;
+}
+.player-opts-bar.gone{display:none;}
+.opt-btn{
+  flex-shrink:0;padding:5px 14px;border-radius:16px;
+  background:rgba(0,0,0,0.55);border:1px solid rgba(255,255,255,0.25);
+  cursor:pointer;color:rgba(255,255,255,0.8);
+  font-size:11px;font-weight:600;font-family:inherit;
+  transition:all 0.2s;-webkit-tap-highlight-color:transparent;
+  backdrop-filter:blur(6px);
+}
+.opt-btn:hover{background:rgba(255,255,255,0.15);}
+.opt-btn.active{
+  background:rgba(139,92,246,0.55);border-color:var(--purple);color:white;
+  box-shadow:0 0 10px rgba(139,92,246,0.4);
+}
+
+/* TVporInternet import button */
+.tvpi-import-btn{
+  display:flex;align-items:center;gap:8px;
+  width:100%;padding:12px 16px;
+  background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--radius-sm);cursor:pointer;color:var(--text2);
+  font-size:13px;font-weight:500;font-family:inherit;
+  transition:background 0.15s,border-color 0.15s;
+  margin-top:8px;
+}
+.tvpi-import-btn:hover{background:var(--surface2);border-color:var(--border2);}
+.tvpi-import-btn:disabled{opacity:0.5;cursor:not-allowed;}
+
 /* ── TOAST ───────────────────────────────────────────────────────────── */
 .toast{
   position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);
@@ -829,6 +864,10 @@ html,body{
         <span class="vol-pct" id="vol-pct">80%</span>
       </div>
 
+      <!-- Stream options (Opción 1 / 2 / 3 for TVporInternet channels) -->
+      <div class="player-opts-bar gone" id="player-opts-bar" onclick="event.stopPropagation()">
+      </div>
+
       <!-- Bottom channel quick-switch bar -->
       <div class="player-bottombar" id="player-bottombar">
         <div class="pbb-ch-scroll" id="pbb-ch-scroll"></div>
@@ -1028,6 +1067,10 @@ function getIptvChannels() {
 }
 
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function findChannel(id) {
+  return [...CHANNELS, ...getIptvChannels()].find(c => c.id === id) || null;
+}
 function formatDate(iso) {
   if (!iso) return '';
   try {
@@ -1045,7 +1088,7 @@ function renderIptvList() {
   }
   container.innerHTML = iptvPlaylists.map(p => `
     <div class="iptv-row">
-      <div class="iptv-row-ico">📋</div>
+      <div class="iptv-row-ico">${p.source === 'tvporinternet' ? '📡' : '📋'}</div>
       <div class="iptv-row-body">
         <div class="iptv-row-name">${escHtml(p.name)}</div>
         <div class="iptv-row-meta">${(p.channels||[]).length} canales · ${formatDate(p.loadedAt)}</div>
@@ -1108,6 +1151,12 @@ async function refreshIptvPlaylist(id) {
   const playlist = iptvPlaylists.find(p => p.id === id);
   if (!playlist) return;
   showToast('🔄 Actualizando…', 2000);
+
+  // TVporInternet2 uses its own scraper, not the M3U parser
+  if (playlist.source === 'tvporinternet') {
+    return importTvporInternet();
+  }
+
   try {
     const r = await fetch('/api/iptv-parse?url=' + encodeURIComponent(playlist.url),
       { signal: AbortSignal.timeout(35000) });
@@ -1132,6 +1181,52 @@ function removeIptvPlaylist(id) {
   renderGrid();
   renderIptvList();
   showToast('🗑️ Lista eliminada', 2000);
+}
+
+async function importTvporInternet() {
+  const btn = document.getElementById('tvpi-import-btn');
+  if (!btn) return;
+  btn.disabled = true;
+  const orig = btn.innerHTML;
+  btn.innerHTML = '⏳ Importando canales…';
+  try {
+    const r = await fetch('/api/tvporinternet-scrape', { signal: AbortSignal.timeout(30000) });
+    const data = await r.json();
+    if (data.error && (!data.channels || !data.channels.length)) {
+      showToast('⚠️ ' + data.error, 5000);
+      return;
+    }
+    if (!data.channels || !data.channels.length) {
+      showToast('⚠️ No se encontraron canales en TVporInternet2', 4000);
+      return;
+    }
+    // Remove existing tvporinternet import if any
+    iptvPlaylists = iptvPlaylists.filter(p => p.source !== 'tvporinternet');
+    const playlist = {
+      id: 'tvporinternet',
+      name: 'TVporInternet2',
+      url: 'https://www.tvporinternet2.com',
+      source: 'tvporinternet',
+      channels: data.channels.map((ch, i) => ({
+        id: 'tvpi_' + (ch.pageUrl.split('/').filter(Boolean).pop() || i),
+        name: ch.name,
+        logo: ch.logo || '',
+        url: ch.pageUrl,
+        group: 'TVporInternet',
+      })),
+      loadedAt: new Date().toISOString(),
+    };
+    iptvPlaylists.push(playlist);
+    saveIptvPlaylists();
+    renderGrid();
+    renderIptvList();
+    showToast('✅ ' + data.channels.length + ' canales importados de TVporInternet2', 3500);
+  } catch (err) {
+    showToast('⚠️ ' + (err?.message || 'Error al importar'), 4000);
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
 }
 
 function showIptvForm() {
@@ -1483,18 +1578,40 @@ function renderGrid() {
 
 // ── Handle card click ─────────────────────────────────────────────────────────
 function handleCardClick(id) {
-  const ch = CHANNELS.find(c => c.id === id);
+  const ch = findChannel(id);
   if (!ch) return;
   if (ch.comingSoon || (!ch.url && !ch.ytId)) {
     showToast('📡 Canal próximamente disponible', 2500);
     return;
   }
-  openChannel(id);
+  openChannel(id, ch);
 }
 
 // ── HLS instance ──────────────────────────────────────────────────────────────
 let hlsInstance = null;
 let playerMode = 'iframe'; // 'hls' | 'iframe'
+let currentStreamOptions = [];
+
+function renderOptionsBar(streams) {
+  const bar = document.getElementById('player-opts-bar');
+  if (!streams || streams.length <= 1) {
+    bar.classList.add('gone');
+    currentStreamOptions = [];
+    return;
+  }
+  currentStreamOptions = streams;
+  bar.classList.remove('gone');
+  bar.innerHTML = streams.map((s, i) =>
+    `<button class="opt-btn${i === 0 ? ' active' : ''}" onclick="switchStreamOption(${i},event)">${s.label || 'Opción ' + (i + 1)}</button>`
+  ).join('');
+}
+
+function switchStreamOption(idx, e) {
+  if (e) e.stopPropagation();
+  if (!currentStreamOptions[idx]) return;
+  document.querySelectorAll('.opt-btn').forEach((b, i) => b.classList.toggle('active', i === idx));
+  playIframe(currentStreamOptions[idx].url);
+}
 
 function stopCurrentPlayer() {
   // Stop HLS
@@ -1507,6 +1624,8 @@ function stopCurrentPlayer() {
   // Hide YT covers
   document.getElementById('yt-cover-br').style.display = 'none';
   document.getElementById('yt-cover-tl').style.display = 'none';
+  // Clear stream options
+  renderOptionsBar([]);
 }
 
 function playYouTube(ytId) {
@@ -1550,8 +1669,8 @@ function playIframe(url) {
 }
 
 // ── Open player ───────────────────────────────────────────────────────────────
-async function openChannel(id) {
-  const ch = CHANNELS.find(c => c.id === id);
+async function openChannel(id, chOverride) {
+  const ch = chOverride || findChannel(id);
   if (!ch || (!ch.url && !ch.ytId)) return;
 
   currentChId = id;
@@ -1581,6 +1700,31 @@ async function openChannel(id) {
   if (ch.url.includes('.m3u8') || ch.url.startsWith('rtmp://')) {
     showToast('✅ Stream directo — sin publicidad', 2000);
     playHLS(ch.url);
+    return;
+  }
+
+  // TVporInternet2 channel page — extract stream options dynamically
+  if (ch.url && ch.url.includes('tvporinternet2.com')) {
+    try {
+      const cacheKey = 'tvpi_' + id;
+      let streams;
+      const cached = sessionStorage.getItem(cacheKey);
+      if (cached) {
+        streams = JSON.parse(cached);
+      } else {
+        const r = await fetch('/api/tvporinternet-scrape?page=' + encodeURIComponent(ch.url),
+          { signal: AbortSignal.timeout(12000) });
+        const data = await r.json();
+        streams = data.streams || [];
+        if (streams.length) sessionStorage.setItem(cacheKey, JSON.stringify(streams));
+      }
+      if (streams && streams.length) {
+        renderOptionsBar(streams);
+        playIframe(streams[0].url);
+        return;
+      }
+    } catch {}
+    playIframe(ch.url);
     return;
   }
 
@@ -1623,7 +1767,8 @@ function closePlayer(e) {
 // ── Bottom quick-switch chips ─────────────────────────────────────────────────
 function renderBottomChips() {
   const scroll = document.getElementById('pbb-ch-scroll');
-  const available = CHANNELS.filter(ch => ch.url && !ch.comingSoon);
+  const allCh = [...CHANNELS, ...getIptvChannels()];
+  const available = allCh.filter(ch => (ch.url || ch.ytId) && !ch.comingSoon);
   scroll.innerHTML = available.map(ch =>
     `<div class="pbb-ch-chip${ch.id === currentChId ? ' active' : ''}" onclick="switchChannel('${ch.id}',event)">
       ${ch.name}
@@ -1634,7 +1779,8 @@ function renderBottomChips() {
 function switchChannel(id, e) {
   if (e) e.stopPropagation();
   if (id === currentChId) return;
-  openChannel(id);
+  const ch = findChannel(id);
+  if (ch) openChannel(id, ch);
 }
 
 // ── Bar auto-hide ─────────────────────────────────────────────────────────────
@@ -1973,6 +2119,10 @@ document.addEventListener('DOMContentLoaded', init);
             <button class="iptv-submit-btn" id="iptv-add-btn" onclick="addIptvPlaylist()">Agregar</button>
           </div>
         </div>
+        <button class="tvpi-import-btn" id="tvpi-import-btn" onclick="importTvporInternet()">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Importar canales de TVporInternet2.com
+        </button>
       </div>
     </div>
 
