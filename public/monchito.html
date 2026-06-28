@@ -1482,7 +1482,7 @@ function renderGrid() {
 function handleCardClick(id) {
   const ch = CHANNELS.find(c => c.id === id);
   if (!ch) return;
-  if (ch.comingSoon || !ch.url) {
+  if (ch.comingSoon || (!ch.url && !ch.ytId)) {
     showToast('📡 Canal próximamente disponible', 2500);
     return;
   }
