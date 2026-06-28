@@ -980,6 +980,7 @@ function exportSettings() {
   const data = {
     settings: appSettings,
     playlists: iptvPlaylists,
+    manualChannels,
     lang: currentLang,
     exportedAt: new Date().toISOString(),
   };
@@ -1004,10 +1005,13 @@ function importSettingsFile(event) {
       const data = JSON.parse(e.target.result);
       if (data.settings) { appSettings = { ...SETTINGS_DEFAULTS, ...data.settings }; localStorage.setItem('monchito-settings', JSON.stringify(appSettings)); }
       if (data.playlists) { iptvPlaylists = data.playlists; saveIptvPlaylists(); }
+      if (data.manualChannels) { manualChannels = data.manualChannels; saveManualChannels(); }
       if (data.lang) { currentLang = data.lang; localStorage.setItem('monchito-lang', currentLang); }
       applySettings();
       applyLang();
       renderIptvList();
+      renderManualList();
+      renderGrid();
       showToast('✅ Configuración importada', 2500);
     } catch { showToast('⚠️ Archivo inválido', 2000); }
   };
@@ -1016,16 +1020,20 @@ function importSettingsFile(event) {
 }
 
 function resetAllSettings() {
-  if (!confirm('¿Restablecer TODOS los ajustes? Se eliminarán las listas IPTV.')) return;
+  if (!confirm('¿Restablecer TODOS los ajustes? Se eliminarán las listas IPTV y canales manuales.')) return;
   appSettings = { ...SETTINGS_DEFAULTS };
   localStorage.removeItem('monchito-settings');
   localStorage.removeItem('monchito-iptv');
+  localStorage.removeItem('monchito-manual');
   localStorage.removeItem('monchito-lang');
   iptvPlaylists = [];
+  manualChannels = [];
   currentLang = 'es';
   applySettings();
   applyLang();
   renderIptvList();
+  renderManualList();
+  renderGrid();
   showToast('✅ Ajustes restablecidos', 2500);
 }
 
@@ -1047,6 +1055,101 @@ function closeSettings() {
 let iptvPlaylists = JSON.parse(localStorage.getItem('monchito-iptv') || '[]');
 
 function saveIptvPlaylists() { localStorage.setItem('monchito-iptv', JSON.stringify(iptvPlaylists)); }
+
+// ── Manual Channels ───────────────────────────────────────────────────────────
+let manualChannels = JSON.parse(localStorage.getItem('monchito-manual') || '[]');
+
+function saveManualChannels() { localStorage.setItem('monchito-manual', JSON.stringify(manualChannels)); }
+
+function getManualChannels() {
+  return manualChannels.map(ch => ({
+    id: 'manual_' + ch.id,
+    name: ch.name,
+    cat: (ch.cat || 'otros').toLowerCase(),
+    url: ch.url,
+    img: ch.logo || '',
+    logoLines: [ch.name],
+    logoSub: ch.url.includes('.m3u8') ? 'HLS' : 'Player',
+    gradient: 'linear-gradient(145deg,#0a1e0a 0%,#0f3a1a 60%,#1a5c2a 100%)',
+    live: true,
+    hd: ch.url.includes('.m3u8'),
+    _isManual: true,
+    _manualId: ch.id,
+  }));
+}
+
+function renderManualList() {
+  const container = document.getElementById('manual-ch-list');
+  if (!container) return;
+  if (!manualChannels.length) {
+    container.innerHTML = '<div class="iptv-empty">Sin canales guardados</div>';
+    return;
+  }
+  container.innerHTML = manualChannels.map(ch => `
+    <div class="iptv-row">
+      <div class="iptv-row-ico">🔗</div>
+      <div class="iptv-row-body">
+        <div class="iptv-row-name">${escHtml(ch.name)}</div>
+        <div class="iptv-row-meta">${escHtml(ch.url.length > 55 ? ch.url.substring(0, 55) + '…' : ch.url)}</div>
+      </div>
+      <div class="iptv-row-actions">
+        <button class="iptv-action-btn danger" onclick="removeManualChannel('${escHtml(ch.id)}')" title="Eliminar">×</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function showManualError(msg) {
+  const el = document.getElementById('manual-error-box');
+  if (!el) return;
+  el.textContent = '⚠️ ' + msg;
+  el.style.display = 'block';
+  setTimeout(() => { el.style.display = 'none'; }, 4000);
+}
+
+function addManualChannel() {
+  const nameEl = document.getElementById('manual-name-input');
+  const urlEl  = document.getElementById('manual-url-input');
+  const logoEl = document.getElementById('manual-logo-input');
+  if (!nameEl || !urlEl) return;
+
+  const name = nameEl.value.trim();
+  const url  = urlEl.value.trim();
+  const logo = logoEl ? logoEl.value.trim() : '';
+
+  if (!name) { showManualError('El nombre es obligatorio'); nameEl.focus(); return; }
+  if (!url)  { showManualError('La URL es obligatoria'); urlEl.focus(); return; }
+  try { new URL(url); } catch { showManualError('La URL no parece válida — revísala'); urlEl.focus(); return; }
+
+  const ch = {
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 5),
+    name,
+    url,
+    logo,
+    cat: 'otros',
+    addedAt: new Date().toISOString(),
+  };
+
+  manualChannels.push(ch);
+  saveManualChannels();
+
+  nameEl.value = '';
+  urlEl.value  = '';
+  if (logoEl) logoEl.value = '';
+
+  renderGrid();
+  renderManualList();
+  showToast('✅ "' + name + '" guardado', 3000);
+}
+
+function removeManualChannel(id) {
+  const ch = manualChannels.find(c => c.id === id);
+  manualChannels = manualChannels.filter(c => c.id !== id);
+  saveManualChannels();
+  renderGrid();
+  renderManualList();
+  showToast('🗑️ ' + (ch ? '"' + ch.name + '" eliminado' : 'Canal eliminado'), 2000);
+}
 
 function getIptvChannels() {
   return iptvPlaylists.flatMap((p, pi) =>
@@ -1073,7 +1176,7 @@ function getIptvChannels() {
 function escHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
 
 function findChannel(id) {
-  return [...CHANNELS, ...getIptvChannels()].find(c => c.id === id) || null;
+  return [...CHANNELS, ...getIptvChannels(), ...getManualChannels()].find(c => c.id === id) || null;
 }
 function formatDate(iso) {
   if (!iso) return '';
@@ -1550,7 +1653,7 @@ setInterval(updateClock, 10000);
 
 // ── Filtering ─────────────────────────────────────────────────────────────────
 function getFiltered() {
-  const all = [...CHANNELS, ...getIptvChannels()];
+  const all = [...CHANNELS, ...getIptvChannels(), ...getManualChannels()];
   return all.filter(ch => {
     if (!appSettings.showUnavailable && ch.comingSoon) return false;
     if (activeCat !== 'todos' && ch.cat !== activeCat) return false;
@@ -2100,6 +2203,7 @@ function navTo(section) {
 function init() {
   applyLang();
   applySettings();
+  renderManualList();
 
   // Category buttons
   document.querySelectorAll('.cat-btn').forEach(btn => {
@@ -2145,6 +2249,28 @@ document.addEventListener('DOMContentLoaded', init);
   </div>
 
   <div class="settings-wrap">
+
+    <!-- ── AGREGAR CANAL MANUAL ── -->
+    <div class="settings-section">
+      <div class="settings-section-title">🔗 Agregar canal</div>
+      <div class="settings-card">
+        <div class="iptv-list" id="manual-ch-list">
+          <div class="iptv-empty">Sin canales guardados</div>
+        </div>
+        <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;border-top:1px solid var(--border);">
+          <input class="iptv-input" type="text"  id="manual-name-input" placeholder="Nombre del canal *" autocomplete="off"
+            onkeydown="if(event.key==='Enter')document.getElementById('manual-url-input').focus()"/>
+          <input class="iptv-input" type="url"   id="manual-url-input"  placeholder="URL del player o stream *" autocomplete="off"
+            onkeydown="if(event.key==='Enter')document.getElementById('manual-logo-input').focus()"/>
+          <input class="iptv-input" type="url"   id="manual-logo-input" placeholder="URL del logo (opcional)" autocomplete="off"
+            onkeydown="if(event.key==='Enter')addManualChannel()"/>
+          <div id="manual-error-box" style="display:none;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px 12px;font-size:12px;color:#fca5a5;line-height:1.5;"></div>
+          <button class="iptv-submit-btn" style="align-self:flex-end;min-width:130px;" onclick="addManualChannel()">
+            Guardar canal
+          </button>
+        </div>
+      </div>
+    </div>
 
     <!-- ── LISTAS IPTV ── -->
     <div class="settings-section">
