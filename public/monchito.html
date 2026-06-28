@@ -1781,24 +1781,37 @@ function playYouTube(ytId) {
   document.getElementById('yt-cover-br').style.display = 'block';
 }
 
-function playHLS(url) {
-  currentHLSUrl = url; // original URL kept for cast
+function playHLS(url, useProxy) {
+  currentHLSUrl = url;
   playerMode = 'hls';
   const video = document.getElementById('player-video');
   document.getElementById('player-iframe').style.display = 'none';
   video.style.display = 'block';
   video.volume = currentVolume;
 
-  // Route through server proxy: hides source URL, adds correct headers
-  const proxyUrl = '/api/hls-proxy?url=' + encodeURIComponent(url);
+  // Try direct first (token-bound streams need the real client IP).
+  // If direct load fails (CORS / network error), retry through the proxy.
+  const directUrl = url;
+  const proxyUrl  = '/api/hls-proxy?url=' + encodeURIComponent(url);
+  const srcUrl    = useProxy ? proxyUrl : directUrl;
 
   if (typeof Hls !== 'undefined' && Hls.isSupported()) {
+    if (hlsInstance) { try { hlsInstance.destroy(); } catch {} hlsInstance = null; }
     hlsInstance = new Hls({ enableWorker: true, lowLatencyMode: true });
-    hlsInstance.loadSource(proxyUrl);
+    hlsInstance.loadSource(srcUrl);
     hlsInstance.attachMedia(video);
     hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => video.play().catch(() => {}));
+    // On error, retry once with the proxy (unless we already are)
+    hlsInstance.on(Hls.Events.ERROR, (_, data) => {
+      if (data.fatal && !useProxy) {
+        hlsInstance.destroy();
+        hlsInstance = null;
+        playHLS(url, true);
+      }
+    });
   } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-    video.src = proxyUrl;
+    // Safari native HLS — use direct URL (no proxy needed, native handles CORS)
+    video.src = directUrl;
     video.play().catch(() => {});
   }
 }
