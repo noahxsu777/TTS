@@ -1342,6 +1342,19 @@ const CHANNELS = [
     hd: false,
     comingSoon: true,
   },
+  {
+    id: 'disney',
+    name: 'Disney Channel',
+    cat: 'otros',
+    ytId: 'VTL9FJylNJY',
+    url: '',
+    gradient: 'linear-gradient(145deg,#00155a 0%,#0033bb 60%,#1a6fff 100%)',
+    img: 'https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Disney_Channel_logo.svg/240px-Disney_Channel_logo.svg.png',
+    logoLines: ['Disney'],
+    logoSub: 'Channel',
+    live: true,
+    hd: true,
+  },
 ];
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -1542,6 +1555,22 @@ async function openChannel(id) {
   clearTimeout(window._loadTimer);
   window._loadTimer = setTimeout(() => loadingEl.classList.add('gone'), 1500);
 
+  // YouTube live stream — extract HLS manifest server-side (no YT branding)
+  if (ch.ytId) {
+    try {
+      const r = await fetch(`/api/yt-stream?id=${ch.ytId}`, { signal: AbortSignal.timeout(8000) });
+      const data = await r.json();
+      if (data.stream) {
+        showToast('✅ Stream directo — sin publicidad', 2500);
+        playHLS(data.stream);
+        return;
+      }
+    } catch {}
+    // Fallback: embed without controls/branding
+    playIframe(`https://www.youtube.com/embed/${ch.ytId}?autoplay=1&controls=0&rel=0&modestbranding=1&iv_load_policy=3&showinfo=0&fs=0`);
+    return;
+  }
+
   // If the channel URL is already a direct stream — play immediately, no extraction needed
   if (ch.url.includes('.m3u8') || ch.url.startsWith('rtmp://')) {
     showToast('✅ Stream directo — sin publicidad', 2000);
@@ -1562,10 +1591,8 @@ async function openChannel(id) {
     showToast('✅ Stream directo — sin publicidad', 2500);
     playHLS(stream);
   } else if (type === 'iframe' && stream) {
-    // Inner player iframe (fewer ads than full page)
     playIframe(stream);
   } else {
-    // Fallback: original URL
     playIframe(ch.url);
   }
 }
